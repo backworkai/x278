@@ -1,0 +1,77 @@
+{
+  "name": "@backwork/x278",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Agent-native prior authorization protocol reference implementation and TypeScript SDK.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/backworkai/x278.git"
+  },
+  "bugs": {
+    "url": "https://github.com/backworkai/x278/issues"
+  },
+  "homepage": "https://github.com/backworkai/x278#readme",
+  "keywords": [
+    "x278",
+    "prior-authorization",
+    "healthcare",
+    "fhir",
+    "da-vinci-pas",
+    "effect-ts",
+    "typescript",
+    "agents",
+    "backwork"
+  ],
+  "type": "module",
+  "packageManager": "bun@1.3.11",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./sdk": {
+      "types": "./dist/sdk.d.ts",
+      "import": "./dist/sdk.js"
+    },
+    "./conformance": {
+      "types": "./dist/conformance.d.ts",
+      "import": "./dist/conformance.js"
+    },
+    "./fhir-pas": {
+      "types": "./dist/fhir-pas.d.ts",
+      "import": "./dist/fhir-pas.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "docs"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "demo": "bun run src/demo.ts",
+    "dogfood": "bun run src/dogfood.ts",
+    "prepare": "bun run build",
+    "prove": "bun run dogfood && vitest run test/proof.test.ts",
+    "test": "vitest run",
+    "test:live": "RUN_LIVE_AGENT_TESTS=1 vitest run test/live-agents.test.ts",
+    "test:all": "bun run typecheck && bun run test && bun run test:live",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.100.0",
+    "@openai/agents": "^0.11.5",
+    "effect": "^3.21.2",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@effect/vitest": "^0.29.0",
+    "@types/bun": "^1.3.14",
+    "typescript": "5.9.3",
+    "vitest": "3.2.4"
+  }
+}
