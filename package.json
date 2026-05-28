@@ -69,7 +69,6 @@
   "files": [
     "dist",
     "README.md",
-    "docs",
     "specs",
     "examples",
     "LICENSE"
@@ -86,13 +85,13 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.100.0",
-    "@openai/agents": "^0.11.5",
     "effect": "^3.21.2",
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@anthropic-ai/sdk": "^0.100.0",
     "@effect/vitest": "^0.29.0",
+    "@openai/agents": "^0.11.5",
     "@types/bun": "^1.3.14",
     "typescript": "5.9.3",
     "vitest": "3.2.4"

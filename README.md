@@ -7,31 +7,25 @@
 
 An agent-native reference implementation for x278: Backwork's proposed prior authorization protocol for software agents.
 
-x278 turns the prior authorization exchange into a typed, testable loop:
+x278 turns the prior authorization exchange into a typed, agent-driven loop:
 
 1. provider agent submits a structured request
 2. payer agent returns `approved`, `denied`, `info-needed`, or `pended`
 3. provider agent attaches evidence or awaits review without restarting the queue
 4. terminal determinations are signed, verified, and audit logged
 
-This repository is not a production payer integration. It is a runnable protocol sandbox and SDK foundation for proving behavior before wiring to real Da Vinci PAS, DTR, CRD, X12 278/275, payer sandbox endpoints, or FHIR servers.
+This repository is not a production payer integration. It is a runnable protocol sandbox and SDK foundation for evaluating behavior before wiring to real Da Vinci PAS, DTR, CRD, X12 278/275, payer sandbox endpoints, or FHIR servers.
 
 ## Status
 
-Reference implementation. The protocol shape, SDK, conformance harness, FHIR/PAS mapping helpers, signatures, audit records, and live agent tests are implemented. Real payer integrations and executable payer policy publication are intentionally out of scope for this repo's first milestone.
+Reference implementation. The protocol shape, SDK, conformance harness, FHIR/PAS mapping helpers, signatures, and audit records are implemented. Real payer integrations and executable payer policy publication are intentionally out of scope for this repo's first milestone.
 
-## Run It
+## Quickstart
 
 ```bash
 bun install
-bun run test
-bun run typecheck
-bun run dogfood
-bun run prove
 bun run build
 ```
-
-Use `bun run test:all` when `OPENAI_API_KEY` and `ANTHROPIC_API_KEY` are available; it runs typecheck, offline tests, and the live agent-backed tests.
 
 ## Install From GitHub
 
@@ -100,38 +94,6 @@ Useful import surfaces:
 | `pended` | Accepted but awaiting payer-side processing/review | Await returned subscription |
 | `error` | Malformed or unprocessable exchange | Contact payer or fix request |
 
-## Live Agent Tests
-
-The default test suite is offline. To call real models, provide API keys and run:
-
-```bash
-OPENAI_API_KEY=... ANTHROPIC_API_KEY=... bun run test:live
-```
-
-Optional model overrides:
-
-```bash
-OPENAI_AGENT_MODEL=gpt-5.4-mini ANTHROPIC_MODEL=claude-sonnet-4-5-20250929 bun run test:live
-```
-
-The OpenAI live test uses `@openai/agents` with a real agent and a local x278 tool. The Anthropic live test uses `@anthropic-ai/sdk` as an independent reviewer over a generated x278 transcript.
-
-## Dogfood The Actual Flow
-
-`bun run dogfood` prints a full operator transcript for the core x278 behavior:
-
-- deterministic approval
-- `info-needed` with documentation requirements, evidence attachment, and same-`authId` resume
-- `pended` human review with subscription-style await
-- coded denial with appeal path
-- signature verification and audit-log checks for every terminal determination
-
-## Prove The Paper Claims
-
-`bun run prove` runs the operator dogfood transcript and the standards-oriented proof tests. The proof tests check that x278 requests can be rendered as PAS-style FHIR `Claim` bundles, that determinations map to FHIR `ClaimResponse` outcomes, and that `info-needed` requirements are representable as DTR-style `Questionnaire` resources.
-
-See [docs/conformance-matrix.md](docs/conformance-matrix.md) for the core proof matrix and [docs/whitepaper-claim-ledger.md](docs/whitepaper-claim-ledger.md) for a broader claim-by-claim ledger of what is proven, partially proven, or still unproven.
-
 ## Specification Layout
 
 The protocol spec lives separately from implementation notes:
@@ -141,14 +103,13 @@ The protocol spec lives separately from implementation notes:
 - [specs/adapters/fhir-pas.md](specs/adapters/fhir-pas.md): mapping expectations for FHIR PAS, DTR, CRD, and X12 278/275 adapters.
 - [e2e/provider-agent-protocol.md](e2e/provider-agent-protocol.md) and [e2e/payer-agent-protocol.md](e2e/payer-agent-protocol.md): future cross-implementation contract expectations.
 
-## What This Proves
+## What This Demonstrates
 
 - A provider agent can submit one structured request.
 - A payer agent can return `approved`, `denied`, `info-needed`, or `pended`.
 - `info-needed` carries exact documentation requirements and resumes with the same `authId`.
 - `pended` carries a subscription-like handle and later resolves to a clinical-review determination.
 - Terminal determinations are signed with an Ed25519 detached receipt and appended to an audit log.
-- Tests verify the agent loop, same-auth retry, coded denial, pended review, signatures, and audit records.
 
 ## Implementation Shape
 
@@ -159,29 +120,14 @@ The protocol spec lives separately from implementation notes:
 - `src/sdk.ts`: public TypeScript SDK facade, mock payer, Promise client, and Effect client.
 - `src/conformance.ts`: conformance runner for implementers.
 - `src/fixtures.ts`: medical-service fixtures that exercise each state.
-- `test/x278.test.ts`: core protocol tests.
-- `test/sdk.test.ts`: SDK facade tests.
-- `test/battle.test.ts`: adversarial boundary tests for hostile inputs, replay, evidence validation, and signature tampering.
-- `test/live-agents.test.ts`: OpenAI Agents SDK and Anthropic SDK dogfood tests.
 
 ## Roadmap
 
 See [ROADMAP.md](ROADMAP.md) for the next repo milestones.
 
-## Backwork Test Ladder
-
-1. Keep expanding these protocol tests until every state transition is explicit.
-2. Add golden FHIR fixtures that map x278 requests to PAS `Claim` bundles and final decisions to `ClaimResponse`.
-3. Add DTR fixtures where `documentationRequired[]` points to real `Questionnaire` resources.
-4. Stand up a local HTTP transport only after the pure service tests are stable.
-5. Run contract tests against a payer sandbox or HAPI FHIR instance.
-6. Pilot on one deterministic use case, such as knee arthroplasty or imaging, and measure auth latency, human touches, denial correction rate, and appeal completeness.
-
-The important Backwork boundary: the x278 envelope should stay agent-native and ergonomic, while adapters do the dull mapping work to PAS, DTR, CRD, X12, and payer-specific quirks.
-
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). The short version: keep the protocol behavior test-first, preserve the Effect-native surface, and run `bun run test` plus `bun run typecheck` before opening a PR.
+See [CONTRIBUTING.md](CONTRIBUTING.md). The short version: keep the protocol behavior explicit, preserve the Effect-native surface, and keep contributor verification separate from the public SDK surface.
 
 ## License
 
