@@ -13,8 +13,8 @@ import {
   nonCoveredService,
   spinalStimulatorReview
 } from "../../src/fixtures.js";
-import { createX278HttpTransport } from "../../src/http-transport.js";
 import { createX278Client } from "../../src/sdk.js";
+import { createX278HttpTransport } from "./http-transport.js";
 
 const payerUrl = process.env.X278_PAYER_URL ?? "http://localhost:8787";
 

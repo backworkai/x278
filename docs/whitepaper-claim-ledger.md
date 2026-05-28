@@ -29,9 +29,9 @@ This ledger is the proof boundary for the x278 whitepaper. A claim is considered
 | PA-013 | CMS-0057-F excludes drugs from baseline PA API/process requirements. | Proven - source | CMS CMS-0057-F fact sheet and CMS FAQ. | Drug PA is future extension territory. |
 | PA-014 | CMS-0062-P proposes extending PA requirements to drugs. | Proven - source | CMS 2026 drugs proposed rule fact sheet. | Proposed rule, not final as of May 28, 2026. |
 | PA-015 | CMS estimates roughly $15B savings over ten years. | Proven - source | CMS press release says approximately $15B estimated savings over ten years. | It is an estimate, not guaranteed savings. |
-| STD-001 | PAS uses FHIR `Claim` and `ClaimResponse` for prior authorization. | Proven - source / executable | HL7 PAS docs; `test/proof.test.ts` checks `Claim.use = "preauthorization"`; `bun run docker:fhir` persists Claim/ClaimResponse resources in HAPI FHIR. | Local mapping is PAS-style, not certified PAS profile validation. |
+| STD-001 | PAS uses FHIR `Claim` and `ClaimResponse` for prior authorization. | Proven - source / executable | HL7 PAS docs; `test/proof.test.ts` checks `Claim.use = "preauthorization"`. | Local mapping is PAS-style, not certified PAS profile validation. |
 | STD-002 | PAS bundles can support X12 278/275 where applicable. | Proven - source | HL7 PAS docs. | x278 repo does not implement X12 conversion. |
-| STD-003 | DTR uses FHIR `Questionnaire` / `QuestionnaireResponse` style documentation collection. | Proven - source / executable | HL7 DTR docs; `toDtrQuestionnaires` proof tests; `bun run docker:fhir` persists generated Questionnaires in HAPI FHIR. | No real SDC/DTR package validation yet. |
+| STD-003 | DTR uses FHIR `Questionnaire` / `QuestionnaireResponse` style documentation collection. | Proven - source / executable | HL7 DTR docs; `toDtrQuestionnaires` proof tests. | No real SDC/DTR package validation yet. |
 | STD-004 | CRD discovers payer requirements in real time. | Proven - source | HL7 CRD docs. | Repo does not implement a CRD adapter yet. |
 | STD-005 | FHIR `ClaimResponse.outcome` supports `queued`, `complete`, `error`, and `partial`. | Proven - source / executable | FHIR R4 ClaimResponse docs; proof tests map `pended` to `queued`. | Pended semantics vary by payer implementation. |
 | X402-001 | x402 uses HTTP 402 to prompt payment and retry. | Proven - source | x402 docs/site. | x278 borrows the pattern only; it is not a payment protocol. |
@@ -46,7 +46,7 @@ This ledger is the proof boundary for the x278 whitepaper. A claim is considered
 | X278-009 | Deterministic local authorization can resolve under 15 seconds. | Proven - executable | `test/proof.test.ts` measures local deterministic approval under 15 seconds. | Does not prove real payer network latency or production SLA. |
 | X278-010 | Human review is reserved for exception paths. | Proven - executable in mock | Deterministic cases resolve by rules; spinal-stimulator fixture returns `human-review`. | Needs real policy corpus to quantify "exceptions only." |
 | X278-011 | x278 is agent-native. | Partially proven | Provider client loop, OpenAI Agents SDK live test, Anthropic reviewer live test. | Needs real EHR/payer agent integration and operator UX. |
-| X278-012 | x278 layers on PAS/DTR/CRD/X12 rather than replacing them. | Partially proven | PAS/DTR mapping exists and is persisted in HAPI FHIR; CMS/HL7 sources support rails. | CRD and X12 adapters not implemented; HAPI persistence is not PAS certification. |
+| X278-012 | x278 layers on PAS/DTR/CRD/X12 rather than replacing them. | Partially proven | PAS/DTR mapping exists; CMS/HL7 sources support rails. | CRD and X12 adapters not implemented. |
 | REF-001 | Reference implementation should include core library, middleware, client, signing, adapters. | Partially proven | Core library/client/signing/PAS-DTR mapping exist. | HTTP middleware and CRD/X12 adapters remain. |
 | REF-002 | Toolkit should include mock payer, fixtures, pended/human-review, verbose logs. | Partially proven | Mock payer, fixtures, tests, dogfood transcript exist. | Logs are JSON transcript, not full local server observability. |
 | MKT-001 | "Prior authorization is slow because the channel is human, not because decisions are hard." | Paper language | Plausible thesis supported by burden data and deterministic examples. | Overbroad; some decisions are clinically hard. |
@@ -59,7 +59,6 @@ This ledger is the proof boundary for the x278 whitepaper. A claim is considered
 bun run prove
 bun run dogfood
 bun run test
-bun run docker:fhir
 bun run test:live
 ```
 

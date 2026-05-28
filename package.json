@@ -33,10 +33,6 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
-    "./http": {
-      "types": "./dist/http-transport.d.ts",
-      "import": "./dist/http-transport.js"
-    },
     "./sdk": {
       "types": "./dist/sdk.d.ts",
       "import": "./dist/sdk.js"

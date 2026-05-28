@@ -4,8 +4,8 @@ import type {
   Determination,
   SupportingInfo,
   TerminalDetermination
-} from "./domain.js";
-import type { X278Transport } from "./sdk.js";
+} from "../../src/domain.js";
+import type { X278Transport } from "../../src/sdk.js";
 
 export type X278Fetch = (
   input: string | URL | Request,

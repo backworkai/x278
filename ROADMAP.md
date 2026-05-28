@@ -34,7 +34,7 @@ Status: planned.
 - Persist PAS `Claim` and `ClaimResponse` artifacts.
 - Exercise DTR questionnaire generation and response attachment.
 
-Status: started. Local HAPI FHIR persistence is covered by `bun run docker:fhir`; official profile validation remains.
+Status: planned.
 
 ## Milestone 5: Pilot Candidate
 

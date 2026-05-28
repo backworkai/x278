@@ -2,13 +2,13 @@ import { assert, describe, it } from "@effect/vitest";
 import type {
   AuthorizationRequest,
   SupportingInfo,
-  TerminalDetermination,
-  X278Fetch
+  TerminalDetermination
 } from "../src/index.js";
+import type { X278Fetch } from "../e2e/realistic/http-transport.js";
+import { createX278HttpTransport } from "../e2e/realistic/http-transport.js";
 import {
   createMockPayer,
   createX278Client,
-  createX278HttpTransport,
   kneeReplacementMissingDocs
 } from "../src/index.js";
 
