@@ -44,6 +44,14 @@ bun run docker:realistic
 
 That command starts a payer API container, waits for its health check, runs a one-shot provider scenario container, and exits with the provider result.
 
+Run the HAPI FHIR scenario when changing PAS/DTR mapping or FHIR persistence behavior:
+
+```bash
+bun run docker:fhir
+```
+
+That command starts the payer API, a HAPI FHIR server, and a provider scenario that writes and reads back PAS/DTR-shaped resources.
+
 ## Test Inventory
 
 - `test/x278.test.ts`: core protocol tests.

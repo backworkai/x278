@@ -21,6 +21,14 @@ The scenario covers:
 - Ed25519 signature verification over each terminal determination
 - one audit record per terminal determination
 
+To also persist PAS/DTR-shaped artifacts into a local HAPI FHIR server:
+
+```bash
+bun run docker:fhir
+```
+
+That scenario writes and reads back `Patient`, `Organization`, `Claim`, `ClaimResponse`, and `Questionnaire` resources through the HAPI FHIR REST API. This proves FHIR-server persistence, not official PAS profile certification.
+
 To leave the payer API running for manual calls:
 
 ```bash

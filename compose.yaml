@@ -41,3 +41,29 @@ services:
     depends_on:
       payer-api:
         condition: service_healthy
+
+  hapi-fhir:
+    image: ${HAPI_FHIR_IMAGE:-hapiproject/hapi:latest}
+    profiles: ["fhir"]
+    init: true
+    ports:
+      - "${HAPI_FHIR_PORT:-8090}:8080"
+
+  provider-fhir-scenario:
+    image: backwork/x278-realistic:local
+    profiles: ["fhir"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        BUN_IMAGE: ${BUN_IMAGE:-oven/bun:1-alpine}
+    command: ["bun", "run", "scenario:fhir"]
+    init: true
+    environment:
+      X278_PAYER_URL: "http://payer-api:8787"
+      FHIR_BASE_URL: "http://hapi-fhir:8080/fhir"
+    depends_on:
+      payer-api:
+        condition: service_healthy
+      hapi-fhir:
+        condition: service_started

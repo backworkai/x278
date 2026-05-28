@@ -19,13 +19,14 @@ This matrix turns the whitepaper claims into executable evidence. The reference 
 | X278-004 | `pended` preserves continuity until final determination | Tests assert queued/pended state and later clinical-review determination on same `authId` | Real FHIR Subscription / payer callback |
 | X278-005 | Denial is coded and appeal-actionable | Tests assert `reasonCode`, `reasonText`, and `appealPath`; PAS response has process note | Payer-specific denial code systems |
 | X278-006 | Determinations are signed and logged | Ed25519 receipt verification and audit-record tests | Durable audit store, JWKS/DID key rotation |
-| X278-007 | x278 is a thin shape over PAS/DTR/FHIR rails | `test/proof.test.ts` checks PAS `Claim`, `ClaimResponse`, and DTR `Questionnaire` mappings | Official HL7 validator / payer sandbox certification |
+| X278-007 | x278 is a thin shape over PAS/DTR/FHIR rails | `test/proof.test.ts` checks PAS `Claim`, `ClaimResponse`, and DTR `Questionnaire` mappings; `bun run docker:fhir` persists them in HAPI FHIR | Official HL7 validator / payer sandbox certification |
 
 ## Proof Commands
 
 ```bash
 bun run dogfood
 bun run test
+bun run docker:fhir
 bun run test:live
 ```
 
