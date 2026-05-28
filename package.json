@@ -33,6 +33,10 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./http": {
+      "types": "./dist/http-transport.d.ts",
+      "import": "./dist/http-transport.js"
+    },
     "./sdk": {
       "types": "./dist/sdk.d.ts",
       "import": "./dist/sdk.js"
@@ -76,9 +80,13 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "demo": "bun run src/demo.ts",
+    "docker:down": "docker compose down --volumes --remove-orphans",
+    "docker:realistic": "docker compose up --build --abort-on-container-exit --exit-code-from provider-scenario",
     "dogfood": "bun run src/dogfood.ts",
+    "payer:http": "bun run e2e/realistic/payer-api.ts",
     "prepare": "bun run build",
     "prove": "bun run dogfood && vitest run test/proof.test.ts",
+    "scenario:realistic": "bun run e2e/realistic/provider-scenario.ts",
     "test": "vitest run",
     "test:live": "RUN_LIVE_AGENT_TESTS=1 vitest run test/live-agents.test.ts",
     "test:all": "bun run typecheck && bun run test && bun run test:live",

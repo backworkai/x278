@@ -78,6 +78,7 @@ Useful import surfaces:
 | Import | Purpose |
 | --- | --- |
 | `@backwork/x278` | Full public surface |
+| `@backwork/x278/http` | HTTP transport for provider-to-payer process boundaries |
 | `@backwork/x278/sdk` | Promise and Effect SDK clients |
 | `@backwork/x278/conformance` | Conformance harness |
 | `@backwork/x278/types` | Protocol schemas and types |

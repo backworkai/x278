@@ -36,6 +36,14 @@ bun run prove
 
 Use `bun run test:all` only when `OPENAI_API_KEY` and `ANTHROPIC_API_KEY` are available. It runs typecheck, offline tests, and the live agent-backed tests.
 
+Run the Docker scenario when you want the protocol to cross a realistic process and network boundary:
+
+```bash
+bun run docker:realistic
+```
+
+That command starts a payer API container, waits for its health check, runs a one-shot provider scenario container, and exits with the provider result.
+
 ## Test Inventory
 
 - `test/x278.test.ts`: core protocol tests.
