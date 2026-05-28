@@ -79,6 +79,17 @@ const report = await runX278Conformance(createMockPayer());
 
 The SDK exports both Effect-native and Promise-based surfaces. Use `createX278EffectClient` and `runX278ConformanceEffect` inside Effect applications; use `createX278Client` for conventional TypeScript services.
 
+Useful import surfaces:
+
+| Import | Purpose |
+| --- | --- |
+| `@backwork/x278` | Full public surface |
+| `@backwork/x278/sdk` | Promise and Effect SDK clients |
+| `@backwork/x278/conformance` | Conformance harness |
+| `@backwork/x278/types` | Protocol schemas and types |
+| `@backwork/x278/fhir-pas` | FHIR/PAS/DTR mapping helpers |
+| `@backwork/x278/signing` | Canonical hashing and receipt verification |
+
 ## Protocol States
 
 | State | Meaning | Next action |
@@ -121,6 +132,15 @@ The OpenAI live test uses `@openai/agents` with a real agent and a local x278 to
 
 See [docs/conformance-matrix.md](docs/conformance-matrix.md) for the core proof matrix and [docs/whitepaper-claim-ledger.md](docs/whitepaper-claim-ledger.md) for a broader claim-by-claim ledger of what is proven, partially proven, or still unproven.
 
+## Specification Layout
+
+The protocol spec lives separately from implementation notes:
+
+- [specs/x278-specification-v0.md](specs/x278-specification-v0.md): core actors, states, messages, signing, replay behavior, and boundaries.
+- [specs/transports/http.md](specs/transports/http.md): HTTP representation for an x278 exchange.
+- [specs/adapters/fhir-pas.md](specs/adapters/fhir-pas.md): mapping expectations for FHIR PAS, DTR, CRD, and X12 278/275 adapters.
+- [e2e/provider-agent-protocol.md](e2e/provider-agent-protocol.md) and [e2e/payer-agent-protocol.md](e2e/payer-agent-protocol.md): future cross-implementation contract expectations.
+
 ## What This Proves
 
 - A provider agent can submit one structured request.
@@ -143,6 +163,10 @@ See [docs/conformance-matrix.md](docs/conformance-matrix.md) for the core proof 
 - `test/sdk.test.ts`: SDK facade tests.
 - `test/battle.test.ts`: adversarial boundary tests for hostile inputs, replay, evidence validation, and signature tampering.
 - `test/live-agents.test.ts`: OpenAI Agents SDK and Anthropic SDK dogfood tests.
+
+## Roadmap
+
+See [ROADMAP.md](ROADMAP.md) for the next repo milestones.
 
 ## Backwork Test Ladder
 

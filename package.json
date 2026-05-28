@@ -41,15 +41,38 @@
       "types": "./dist/conformance.d.ts",
       "import": "./dist/conformance.js"
     },
+    "./types": {
+      "types": "./dist/domain.d.ts",
+      "import": "./dist/domain.js"
+    },
+    "./schemas": {
+      "types": "./dist/domain.d.ts",
+      "import": "./dist/domain.js"
+    },
     "./fhir-pas": {
       "types": "./dist/fhir-pas.d.ts",
       "import": "./dist/fhir-pas.js"
+    },
+    "./payer-agent": {
+      "types": "./dist/payer-agent.d.ts",
+      "import": "./dist/payer-agent.js"
+    },
+    "./provider-client": {
+      "types": "./dist/provider-client.d.ts",
+      "import": "./dist/provider-client.js"
+    },
+    "./signing": {
+      "types": "./dist/signing.d.ts",
+      "import": "./dist/signing.js"
     }
   },
   "files": [
     "dist",
     "README.md",
-    "docs"
+    "docs",
+    "specs",
+    "examples",
+    "LICENSE"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
