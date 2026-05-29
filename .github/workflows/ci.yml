@@ -26,6 +26,12 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Certification readiness
+        run: bun run cert:check
+
+      - name: Security audit
+        run: bun run security:audit
+
       - name: Typecheck
         run: bun run typecheck
 

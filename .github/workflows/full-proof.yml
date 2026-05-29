@@ -1,0 +1,32 @@
+name: Full Proof
+
+on:
+  workflow_dispatch:
+
+env:
+  BUN_VERSION: 1.3.11
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  prove-full:
+    name: Full proof with live agents
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Full proof
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_AGENT_MODEL: ${{ vars.OPENAI_AGENT_MODEL || 'gpt-5.4-mini' }}
+          ANTHROPIC_MODEL: ${{ vars.ANTHROPIC_MODEL || 'claude-sonnet-4-5-20250929' }}
+        run: bun run prove:full
