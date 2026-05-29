@@ -39,6 +39,9 @@ const patientId = (request: AuthorizationRequest) =>
 const providerId = (request: AuthorizationRequest) =>
   `provider-${request.provider.npi}`;
 
+const coverageId = (request: AuthorizationRequest) =>
+  `coverage-${request.patient.memberId.toLowerCase()}`;
+
 export const toPasClaimBundle = (
   request: AuthorizationRequest,
   authId: string
@@ -61,6 +64,47 @@ export const toPasClaimBundle = (
     ]
   };
 
+  const coverage: FhirResource = {
+    resourceType: "Coverage",
+    id: coverageId(request),
+    status: "active",
+    beneficiary: {
+      reference: `Patient/${patient.id}`
+    },
+    payor: [
+      {
+        display: "Backwork Reference Payer"
+      }
+    ]
+  };
+
+  const diagnosis = request.service.diagnosis.map((code, index) => ({
+    sequence: index + 1,
+    diagnosisCodeableConcept: {
+      coding: [
+        {
+          system: "http://hl7.org/fhir/sid/icd-10-cm",
+          code
+        }
+      ]
+    }
+  }));
+  const diagnosisSequence = request.service.diagnosis.map(
+    (_, index) => index + 1
+  );
+  const supportingInfo = request.supportingInfo.map((info, index) => ({
+    sequence: index + 1,
+    category: {
+      coding: [
+        {
+          system: "https://backwork.example/fhir/CodeSystem/x278-supporting-info",
+          code: info.id
+        }
+      ]
+    },
+    valueString: info.value
+  }));
+
   const claim: FhirResource = {
     resourceType: "Claim",
     id: authId,
@@ -73,6 +117,15 @@ export const toPasClaimBundle = (
     provider: {
       reference: `Organization/${provider.id}`
     },
+    insurance: [
+      {
+        sequence: 1,
+        focal: true,
+        coverage: {
+          reference: `Coverage/${coverage.id}`
+        }
+      }
+    ],
     created: new Date().toISOString(),
     priority: {
       coding: [
@@ -82,17 +135,7 @@ export const toPasClaimBundle = (
         }
       ]
     },
-    diagnosis: request.service.diagnosis.map((code, index) => ({
-      sequence: index + 1,
-      diagnosisCodeableConcept: {
-        coding: [
-          {
-            system: "http://hl7.org/fhir/sid/icd-10-cm",
-            code
-          }
-        ]
-      }
-    })),
+    ...(diagnosis.length > 0 ? { diagnosis } : {}),
     item: [
       {
         sequence: 1,
@@ -107,7 +150,7 @@ export const toPasClaimBundle = (
             }
           ]
         },
-        diagnosisSequence: request.service.diagnosis.map((_, index) => index + 1),
+        ...(diagnosisSequence.length > 0 ? { diagnosisSequence } : {}),
         quantity: {
           value: request.service.units
         },
@@ -123,18 +166,7 @@ export const toPasClaimBundle = (
         }
       }
     ],
-    supportingInfo: request.supportingInfo.map((info, index) => ({
-      sequence: index + 1,
-      category: {
-        coding: [
-          {
-            system: "https://backwork.example/fhir/CodeSystem/x278-supporting-info",
-            code: info.id
-          }
-        ]
-      },
-      valueString: info.value
-    }))
+    ...(supportingInfo.length > 0 ? { supportingInfo } : {})
   };
 
   return {
@@ -149,6 +181,10 @@ export const toPasClaimBundle = (
       {
         fullUrl: `urn:uuid:${provider.id}`,
         resource: provider
+      },
+      {
+        fullUrl: `urn:uuid:${coverage.id}`,
+        resource: coverage
       },
       {
         fullUrl: `urn:uuid:claim-${authId}`,
@@ -251,7 +287,10 @@ export const toPasClaimResponse = (
   }
 
   if (determination.status === "info-needed") {
-    response.contained = toDtrQuestionnaires(determination.documentationRequired);
+    response.extension = determination.documentationRequired.map((requirement) => ({
+      url: "https://backwork.example/fhir/StructureDefinition/x278-dtr-questionnaire",
+      valueCanonical: requirement.questionnaire
+    }));
     response.processNote = [
       {
         number: 1,

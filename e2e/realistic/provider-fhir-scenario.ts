@@ -28,6 +28,22 @@ interface Scenario {
   readonly expectedFinal: TerminalDetermination["status"];
 }
 
+interface ValidationIssue {
+  readonly severity?: string;
+  readonly code?: string;
+  readonly diagnostics?: string;
+}
+
+interface ValidationSummary {
+  readonly resourceType: string;
+  readonly id: string | null;
+  readonly issueCount: number;
+  readonly fatalCount: number;
+  readonly errorCount: number;
+  readonly warningCount: number;
+  readonly informationCount: number;
+}
+
 const scenarios: ReadonlyArray<Scenario> = [
   {
     id: "knee-replacement-missing-docs",
@@ -143,6 +159,62 @@ const readFhirResource = async (
   return (await response.json()) as FhirResource;
 };
 
+const validateFhirResource = async (
+  resource: FhirResource
+): Promise<ValidationSummary> => {
+  const response = await fetch(fhirUrl(`${resource.resourceType}/$validate`), {
+    method: "POST",
+    headers: fhirHeaders,
+    body: JSON.stringify(resource)
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      `FHIR $validate ${resource.resourceType}/${resource.id ?? "<new>"} failed with HTTP ${
+        response.status
+      }: ${await response.text()}`
+    );
+  }
+
+  const outcome = (await response.json()) as {
+    readonly issue?: ReadonlyArray<ValidationIssue>;
+  };
+  const issues = outcome.issue ?? [];
+  const blocking = issues.filter(
+    (issue) => issue.severity === "fatal" || issue.severity === "error"
+  );
+
+  if (blocking.length > 0) {
+    throw new Error(
+      `FHIR validation rejected ${resource.resourceType}/${
+        resource.id ?? "<new>"
+      }: ${JSON.stringify(blocking, null, 2)}`
+    );
+  }
+
+  return {
+    resourceType: resource.resourceType,
+    id: resource.id ?? null,
+    issueCount: issues.length,
+    fatalCount: issues.filter((issue) => issue.severity === "fatal").length,
+    errorCount: issues.filter((issue) => issue.severity === "error").length,
+    warningCount: issues.filter((issue) => issue.severity === "warning").length,
+    informationCount: issues.filter(
+      (issue) => issue.severity === "information"
+    ).length
+  };
+};
+
+const validateAndUpsertFhirResource = async (
+  resource: FhirResource
+): Promise<{
+  readonly resource: FhirResource;
+  readonly validation: ValidationSummary;
+}> => ({
+  validation: await validateFhirResource(resource),
+  resource: await upsertFhirResource(resource)
+});
+
 const withId = (resource: FhirResource, id: string): FhirResource => ({
   ...resource,
   id
@@ -157,19 +229,25 @@ const persistStepResponse = async (
     toPasClaimResponse(request, step),
     `${step.authId}-${index + 1}-${step.status}`
   );
-  const saved = await upsertFhirResource(response);
+  const saved = await validateAndUpsertFhirResource(response);
 
   const questionnaires =
     step.status === "info-needed"
       ? await Promise.all(
-          toDtrQuestionnaires(step.documentationRequired).map(upsertFhirResource)
+          toDtrQuestionnaires(step.documentationRequired).map(
+            validateAndUpsertFhirResource
+          )
         )
       : [];
 
   return {
-    responseId: saved.id,
-    outcome: saved.outcome,
-    questionnaires: questionnaires.map((questionnaire) => questionnaire.id)
+    responseId: saved.resource.id,
+    outcome: saved.resource.outcome,
+    validation: saved.validation,
+    questionnaires: questionnaires.map((questionnaire) => ({
+      id: questionnaire.resource.id,
+      validation: questionnaire.validation
+    }))
   };
 };
 
@@ -198,7 +276,9 @@ const runScenario = async (scenario: Scenario) => {
   const claimBundle = toPasClaimBundle(trace.finalRequest, trace.final.authId);
   const savedBundleResources = [];
   for (const entry of claimBundle.entry) {
-    savedBundleResources.push(await upsertFhirResource(entry.resource));
+    savedBundleResources.push(
+      await validateAndUpsertFhirResource(entry.resource)
+    );
   }
 
   const stepResponses = await Promise.all(
@@ -208,7 +288,7 @@ const runScenario = async (scenario: Scenario) => {
   );
 
   const finalResponse = toPasClaimResponse(trace.finalRequest, trace.final);
-  const savedFinalResponse = await upsertFhirResource(finalResponse);
+  const savedFinalResponse = await validateAndUpsertFhirResource(finalResponse);
   const readClaim = await readFhirResource("Claim", trace.final.authId);
   const readFinalResponse = await readFhirResource(
     "ClaimResponse",
@@ -231,14 +311,16 @@ const runScenario = async (scenario: Scenario) => {
     authId: trace.final.authId,
     finalStatus: trace.final.status,
     persisted: {
-      bundleResources: savedBundleResources.map((resource) => ({
+      bundleResources: savedBundleResources.map(({ resource, validation }) => ({
         resourceType: resource.resourceType,
-        id: resource.id
+        id: resource.id,
+        validation
       })),
       stepResponses,
       finalClaimResponse: {
-        id: savedFinalResponse.id,
-        outcome: savedFinalResponse.outcome
+        id: savedFinalResponse.resource.id,
+        outcome: savedFinalResponse.resource.outcome,
+        validation: savedFinalResponse.validation
       }
     }
   };

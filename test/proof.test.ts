@@ -96,7 +96,7 @@ describe("whitepaper proof matrix", () => {
         String(infoResponse.disposition),
         /conservative-tx-6wk/
       );
-      assert.ok(infoResponse.contained);
+      assert.ok(infoResponse.extension);
 
       assert.strictEqual(pendedResponse.outcome, "queued");
       assert.match(String(pendedResponse.disposition), /human-review/);

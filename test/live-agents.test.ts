@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { Agent, run, tool } from "@openai/agents";
 import { assert, describe, it } from "@effect/vitest";
 import { Effect } from "effect";
@@ -82,8 +83,7 @@ const runScenario = (caseId: ScenarioId): Promise<ScenarioTranscript> =>
     }).pipe(Effect.provide(PayerAgentLive))
   );
 
-const LiveVerdict = z.object({
-  provider: z.string(),
+const LiveCaseVerdict = z.object({
   caseId: z.string(),
   pass: z.boolean(),
   observedStatuses: z.array(z.string()),
@@ -93,35 +93,51 @@ const LiveVerdict = z.object({
   notes: z.string()
 });
 
-const parseJsonObject = (text: string): unknown => {
-  const trimmed = text.trim();
-  if (trimmed.startsWith("{")) {
-    return JSON.parse(trimmed);
-  }
+const LiveSuiteVerdict = z.object({
+  provider: z.string(),
+  pass: z.boolean(),
+  cases: z.array(LiveCaseVerdict)
+});
 
-  const match = trimmed.match(/\{[\s\S]*\}/);
-  if (!match) {
-    throw new Error(`Model did not return a JSON object: ${text}`);
-  }
+type LiveSuiteVerdict = z.infer<typeof LiveSuiteVerdict>;
 
-  return JSON.parse(match[0]);
+const expectedStatuses = new Map<ScenarioId, ReadonlyArray<string>>([
+  ["knee_missing_docs", ["info-needed", "approved"]],
+  ["spinal_stimulator_review", ["pended", "approved"]],
+  ["non_covered_service", ["denied", "denied"]]
+]);
+
+const assertLiveSuite = (verdict: LiveSuiteVerdict) => {
+  assert.strictEqual(verdict.pass, true);
+  assert.strictEqual(verdict.cases.length, expectedStatuses.size);
+
+  for (const [caseId, statuses] of expectedStatuses) {
+    const item = verdict.cases.find((candidate) => candidate.caseId === caseId);
+    assert.ok(item, `missing live verdict for ${caseId}`);
+    assert.strictEqual(item.pass, true, item.notes);
+    assert.deepStrictEqual(item.observedStatuses, statuses);
+    assert.strictEqual(item.sameAuthId, true);
+    assert.strictEqual(item.signedFinal, true);
+    assert.strictEqual(item.auditCount, 1);
+  }
 };
 
 describe("live SDK-backed x278 protocol tests", () => {
   it.effect.skipIf(!shouldRunLive || !hasOpenAIKey)(
-    "uses the OpenAI Agents SDK with a real model and local x278 tool",
+    "uses the OpenAI Agents SDK with a real model and local x278 tool over every core path",
     () =>
       Effect.promise(async () => {
-        const runX278Case = tool({
-          name: "run_x278_case",
+        const runX278Suite = tool({
+          name: "run_x278_suite",
           description:
-            "Runs a local Backwork x278 reference scenario and returns the protocol transcript as JSON.",
-          parameters: z.object({
-            caseId: z.enum(["knee_missing_docs"])
-          }),
+            "Runs the local Backwork x278 reference scenarios and returns protocol transcripts as JSON.",
+          parameters: z.object({}),
           strict: true,
-          async execute({ caseId }) {
-            return JSON.stringify(await runScenario(caseId));
+          async execute() {
+            const transcripts = await Promise.all(
+              [...expectedStatuses.keys()].map(runScenario)
+            );
+            return JSON.stringify(transcripts);
           }
         });
 
@@ -129,12 +145,12 @@ describe("live SDK-backed x278 protocol tests", () => {
           name: "x278 OpenAI live auditor",
           model: process.env.OPENAI_AGENT_MODEL ?? "gpt-5.4-mini",
           instructions:
-            "You are a protocol test auditor. Call the tool, inspect the returned transcript, and return a structured verdict. Pass only if the first status is info-needed, the final status is approved, the authId is preserved, the terminal determination is signed, and exactly one audit record exists.",
-          tools: [runX278Case],
-          outputType: LiveVerdict,
+            "You are a protocol test auditor. Call the tool, inspect every transcript, and return a structured suite verdict. For observedStatuses, always return [first.status, final.status]. Pass the suite only if knee_missing_docs is info-needed then approved, spinal_stimulator_review is pended then approved, non_covered_service is denied then denied, every authId is preserved, every terminal determination is signed, and each scenario has exactly one audit record.",
+          tools: [runX278Suite],
+          outputType: LiveSuiteVerdict,
           modelSettings: {
-            toolChoice: "run_x278_case",
-            maxTokens: 600,
+            toolChoice: "run_x278_suite",
+            maxTokens: 1000,
             reasoning: { effort: "low" },
             text: { verbosity: "low" }
           }
@@ -142,57 +158,47 @@ describe("live SDK-backed x278 protocol tests", () => {
 
         const result = await run(
           agent,
-          "Run the knee_missing_docs x278 case and return the verdict."
+          "Run the x278 suite and return the verdict.",
+          { maxTurns: 4 }
         );
         const verdict = result.finalOutput;
 
         assert.ok(verdict);
-        assert.strictEqual(verdict.pass, true);
-        assert.deepStrictEqual(verdict.observedStatuses, [
-          "info-needed",
-          "approved"
-        ]);
-        assert.strictEqual(verdict.sameAuthId, true);
-        assert.strictEqual(verdict.signedFinal, true);
-        assert.strictEqual(verdict.auditCount, 1);
+        assertLiveSuite(verdict);
       }),
     180_000
   );
 
   it.effect.skipIf(!shouldRunLive || !hasAnthropicKey)(
-    "uses the Anthropic TypeScript SDK with a real model as an independent reviewer",
+    "uses the Anthropic TypeScript SDK with a real model as an independent suite reviewer",
     () =>
       Effect.promise(async () => {
-        const transcript = await runScenario("non_covered_service");
+        const transcripts = await Promise.all(
+          [...expectedStatuses.keys()].map(runScenario)
+        );
         const client = new Anthropic({
           apiKey: process.env.ANTHROPIC_API_KEY
         });
 
-        const response = await client.messages.create({
+        const response = await client.messages.parse({
           model:
             process.env.ANTHROPIC_MODEL ?? "claude-sonnet-4-5-20250929",
-          max_tokens: 500,
+          max_tokens: 1000,
           system:
-            "You are a protocol test reviewer. Return only JSON matching this shape: {\"provider\":\"anthropic-sdk\",\"caseId\":\"string\",\"pass\":boolean,\"observedStatuses\":[\"string\"],\"sameAuthId\":boolean,\"signedFinal\":boolean,\"auditCount\":number,\"notes\":\"string\"}. Pass only if this is a denied x278 terminal response with nextAction appeal, reasonCode not-covered, a signed EdDSA final determination, and one audit record.",
+            "You are a protocol test reviewer. Return a structured suite verdict. For observedStatuses, always return [first.status, final.status]. Pass the suite only if knee_missing_docs is info-needed then approved, spinal_stimulator_review is pended then approved, non_covered_service is denied then denied, every authId is preserved, every terminal determination is signed, and each scenario has exactly one audit record.",
           messages: [
             {
               role: "user",
-              content: JSON.stringify(transcript)
+              content: JSON.stringify(transcripts)
             }
-          ]
+          ],
+          output_config: {
+            format: zodOutputFormat(LiveSuiteVerdict)
+          }
         });
 
-        const text = response.content
-          .filter((block) => block.type === "text")
-          .map((block) => block.text)
-          .join("");
-        const verdict = LiveVerdict.parse(parseJsonObject(text));
-
-        assert.strictEqual(verdict.pass, true);
-        assert.ok(verdict.observedStatuses.includes("denied"));
-        assert.strictEqual(verdict.sameAuthId, true);
-        assert.strictEqual(verdict.signedFinal, true);
-        assert.strictEqual(verdict.auditCount, 1);
+        assert.ok(response.parsed_output);
+        assertLiveSuite(response.parsed_output);
       }),
     180_000
   );

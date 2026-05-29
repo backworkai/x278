@@ -144,7 +144,7 @@ if (final.status !== "approved") {
 if (!report.passed || !secondReport.passed) {
   throw new Error("conformance report failed");
 }
-if (bundle.entry.length !== 3) {
+if (bundle.entry.length !== 4) {
   throw new Error("PAS bundle did not include expected resources");
 }
 
