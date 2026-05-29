@@ -4,7 +4,6 @@ import {
   sign as nodeSign,
   verify as nodeVerify
 } from "node:crypto";
-import type { KeyObject } from "node:crypto";
 import { Effect } from "effect";
 import { canonicalize } from "./canonical-json.js";
 import type {
@@ -16,7 +15,7 @@ import type {
 
 export interface PayerKeyPair {
   readonly keyId: string;
-  readonly privateKey: KeyObject;
+  readonly privateKey: unknown;
   readonly publicKeyPem: string;
 }
 
@@ -72,7 +71,11 @@ export const signDetermination = (
       nonce: crypto.randomUUID()
     };
     const payload = signedPayload(request, determination, receiptBase);
-    const signature = nodeSign(null, Buffer.from(payload), keyPair.privateKey);
+    const signature = nodeSign(
+      null,
+      Buffer.from(payload),
+      keyPair.privateKey as Parameters<typeof nodeSign>[2]
+    );
 
     return {
       alg: "EdDSA",
