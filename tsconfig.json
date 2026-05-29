@@ -10,8 +10,19 @@
     "exactOptionalPropertyTypes": true,
     "skipLibCheck": true,
     "types": ["bun-types"],
+    "baseUrl": ".",
+    "paths": {
+      "@backwork/x278": ["src/index.ts"],
+      "@backwork/x278/*": ["src/*.ts"]
+    },
     "allowImportingTsExtensions": false,
     "noEmit": true
   },
-  "include": ["src/**/*.ts", "test/**/*.ts", "e2e/**/*.ts", "scripts/**/*.ts"]
+  "include": [
+    "src/**/*.ts",
+    "test/**/*.ts",
+    "e2e/**/*.ts",
+    "scripts/**/*.ts",
+    "examples/**/*.ts"
+  ]
 }

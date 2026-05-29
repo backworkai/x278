@@ -168,6 +168,29 @@ The harness exercises the core behaviors described by the protocol: approval,
 denial, information-needed retry, pended review, signature verification, audit
 records, and bounded workflow handling.
 
+## Examples
+
+The repository includes runnable examples that use the same public package
+exports consumers install from npm:
+
+| Command | What it shows |
+| --- | --- |
+| `bun run example:mock` | Full provider loop against the in-memory payer, including `info-needed`, `pended`, and `denied` paths |
+| `bun run example:conformance` | Running the conformance harness against a transport |
+| `bun run payer:http` + `bun run example:http` | HTTP client usage against the local reference payer |
+
+For the HTTP example, start the payer in one terminal:
+
+```bash
+bun run payer:http
+```
+
+Then run the client from another terminal:
+
+```bash
+bun run example:http
+```
+
 ## Local Development
 
 ```bash

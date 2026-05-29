@@ -1,6 +1,6 @@
 {
   "name": "@backwork/x278",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Agent-native prior authorization protocol reference implementation and TypeScript SDK.",
   "license": "MIT",
   "repository": {
@@ -182,6 +182,9 @@
     "docker:fhir": "sh -c 'docker compose --profile fhir up --build --abort-on-container-exit --exit-code-from provider-fhir-scenario provider-fhir-scenario; status=$?; docker compose --profile fhir down --volumes --remove-orphans; exit $status'",
     "docker:realistic": "sh -c 'docker compose up --build --abort-on-container-exit --exit-code-from provider-scenario; status=$?; docker compose down --volumes --remove-orphans; exit $status'",
     "dogfood": "bun run src/dogfood.ts",
+    "example:conformance": "bun run build && bun run examples/conformance-runner.ts",
+    "example:http": "bun run build && bun run examples/http-client.ts",
+    "example:mock": "bun run build && bun run examples/mock-provider-loop.ts",
     "payer:http": "bun run e2e/realistic/payer-api.ts",
     "prepare": "bun run build",
     "prove": "bun run dogfood && vitest run test/proof.test.ts",
