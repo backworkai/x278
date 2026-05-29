@@ -104,14 +104,14 @@ const main = async () => {
     ),
     check(
       "sdk.public-surface",
-      !Object.hasOwn(exports, "./http") &&
+      Object.hasOwn(exports, "./http") &&
         JSON.stringify(exports).includes("\"require\"") &&
         scripts["release:attw"] === "bun run scripts/attw.ts" &&
         packageJson.private !== true &&
         packageFiles.includes("dist") &&
         packageFiles.includes("README.md") &&
         packageFiles.includes("LICENSE"),
-      "public exports are dual ESM/CJS, package publishing is enabled, test-only HTTP transport is excluded, and package files are allow-listed"
+      "public exports are dual ESM/CJS, production HTTP transport is exported, package publishing is enabled, and package files are allow-listed"
     ),
     check(
       "agents.real-model-proof",

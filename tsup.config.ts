@@ -7,6 +7,7 @@ export default defineConfig({
     conformance: "src/conformance.ts",
     domain: "src/domain.ts",
     "fhir-pas": "src/fhir-pas.ts",
+    http: "src/http.ts",
     "payer-agent": "src/payer-agent.ts",
     "provider-client": "src/provider-client.ts",
     signing: "src/signing.ts"

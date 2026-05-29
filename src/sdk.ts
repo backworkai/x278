@@ -5,7 +5,8 @@ import type {
   Determination,
   DocumentationRequirement,
   SupportingInfo,
-  TerminalDetermination
+  TerminalDetermination,
+  X278Capabilities
 } from "./domain.js";
 import {
   ProtocolError,
@@ -44,6 +45,7 @@ export interface X278EffectTransport {
     request: AuthorizationRequest,
     determination: TerminalDetermination
   ) => Effect.Effect<boolean, ProtocolError>;
+  readonly capabilities?: Effect.Effect<X278Capabilities, ProtocolError>;
 }
 
 /**
@@ -71,6 +73,7 @@ export interface X278Transport {
     request: AuthorizationRequest,
     determination: TerminalDetermination
   ) => Promise<boolean>;
+  readonly capabilities?: () => Promise<X278Capabilities>;
 }
 
 /**
@@ -144,6 +147,7 @@ export interface X278EffectClient {
     request: AuthorizationRequest,
     determination: TerminalDetermination
   ) => Effect.Effect<boolean, ProtocolError>;
+  readonly capabilities?: Effect.Effect<X278Capabilities, ProtocolError>;
 }
 
 /**
@@ -170,6 +174,7 @@ export interface X278Client {
     request: AuthorizationRequest,
     determination: TerminalDetermination
   ) => Promise<boolean>;
+  readonly capabilities?: () => Promise<X278Capabilities>;
 }
 
 const fromPromise = <A>(
@@ -179,7 +184,10 @@ const fromPromise = <A>(
 ): Effect.Effect<A, ProtocolError> =>
   Effect.tryPromise({
     try: promise,
-    catch: (detail) => new ProtocolError({ kind, reason, detail })
+    catch: (detail) =>
+      detail instanceof ProtocolError
+        ? detail
+        : new ProtocolError({ kind, reason, detail })
   });
 
 const runProtocolPromise = async <A>(
@@ -252,6 +260,7 @@ const appendEvidence = (
 const toEffectTransport = (transport: X278Transport): X278EffectTransport => {
   const auditLog = transport.auditLog;
   const verify = transport.verify;
+  const capabilities = transport.capabilities;
 
   return {
     authorize: (request) =>
@@ -280,6 +289,14 @@ const toEffectTransport = (transport: X278Transport): X278EffectTransport => {
               () => verify(request, determination),
               "transport-verify-failed"
             )
+        }
+      : {}),
+    ...(capabilities
+      ? {
+          capabilities: fromPromise(
+            () => capabilities(),
+            "transport-capabilities-failed"
+          )
         }
       : {})
   };
@@ -403,6 +420,7 @@ export const createX278EffectClient = (
 
   const auditLog = transport.auditLog;
   const verify = transport.verify;
+  const capabilities = transport.capabilities;
 
   return {
     authorize,
@@ -412,7 +430,8 @@ export const createX278EffectClient = (
       requestWithTrace(request).pipe(Effect.map((trace) => trace.final)),
     requestWithTrace,
     ...(auditLog ? { auditLog } : {}),
-    ...(verify ? { verify } : {})
+    ...(verify ? { verify } : {}),
+    ...(capabilities ? { capabilities } : {})
   };
 };
 
@@ -431,6 +450,7 @@ export const createX278Client = (
 
   const auditLog = effectClient.auditLog;
   const verify = effectClient.verify;
+  const capabilities = effectClient.capabilities;
 
   return {
     authorize: (request) => runProtocolPromise(effectClient.authorize(request)),
@@ -449,6 +469,9 @@ export const createX278Client = (
           verify: (request, determination) =>
             runProtocolPromise(verify(request, determination))
         }
+      : {}),
+    ...(capabilities
+      ? { capabilities: () => runProtocolPromise(capabilities) }
       : {})
   };
 };

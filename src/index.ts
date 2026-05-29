@@ -3,6 +3,7 @@ export * from "./conformance.js";
 export * from "./domain.js";
 export * from "./fhir-pas.js";
 export * from "./fixtures.js";
+export * from "./http.js";
 export * from "./payer-agent.js";
 export * from "./provider-client.js";
 export * from "./sdk.js";

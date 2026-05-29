@@ -2,12 +2,15 @@ import { assert, describe, it } from "@effect/vitest";
 import type {
   AuthorizationRequest,
   SupportingInfo,
-  TerminalDetermination
+  TerminalDetermination,
+  X278Fetch
 } from "../src/index.js";
-import type { X278Fetch } from "../e2e/realistic/http-transport.js";
-import { createX278HttpTransport } from "../e2e/realistic/http-transport.js";
 import {
+  ProtocolError,
   createMockPayer,
+  createX278HttpClient,
+  createX278HttpClientFromEnv,
+  createX278HttpTransport,
   createX278Client,
   kneeReplacementMissingDocs
 } from "../src/index.js";
@@ -120,5 +123,138 @@ describe("x278 HTTP transport", () => {
       "POST /verify",
       "GET /audit-log"
     ]);
+  });
+
+  it("creates a batteries-included HTTP client with capabilities discovery", async () => {
+    const { fetcher } = createFetchBackedPayer();
+    const client = createX278HttpClient({
+      baseUrl: "http://payer.example",
+      fetch: async (input, init) => {
+        const url = new URL(input.toString());
+        if (url.pathname === "/.well-known/x278") {
+          return json({
+            protocol: "x278",
+            implementation: "test-payer",
+            endpoints: {
+              authorize: "/authorize",
+              resume: "/authorizations/{authId}/resume",
+              awaitDetermination: "/determinations/await",
+              auditLog: "/audit-log",
+              verify: "/verify"
+            }
+          });
+        }
+
+        return fetcher(input, init);
+      },
+      collectEvidence: (_request, requirements) =>
+        requirements.map((requirement) => ({
+          id: requirement.id,
+          value: `http client evidence for ${requirement.id}`,
+          source: "chart" as const
+        }))
+    });
+
+    const capabilities = await client.capabilities();
+    const final = await client.request(kneeReplacementMissingDocs);
+
+    assert.strictEqual(capabilities.protocol, "x278");
+    assert.strictEqual(final.status, "approved");
+  });
+
+  it("passes transport capabilities through the generic client", async () => {
+    const client = createX278Client(
+      createX278HttpTransport({
+        baseUrl: "http://payer.example",
+        fetch: async () =>
+          json({
+            protocol: "x278",
+            implementation: "generic-client-test",
+            endpoints: {
+              authorize: "/authorize",
+              resume: "/authorizations/{authId}/resume",
+              awaitDetermination: "/determinations/await"
+            }
+          })
+      })
+    );
+
+    const capabilities = await client.capabilities?.();
+
+    assert.strictEqual(capabilities?.implementation, "generic-client-test");
+  });
+
+  it("retries transient HTTP failures and exposes hook events", async () => {
+    const events: Array<string> = [];
+    let failures = 0;
+    const { fetcher } = createFetchBackedPayer();
+    const client = createX278HttpClient({
+      baseUrl: "http://payer.example",
+      fetch: async (input, init) => {
+        const url = new URL(input.toString());
+        if (url.pathname === "/authorize" && failures === 0) {
+          failures += 1;
+          return json({ error: { reason: "busy" } }, 503);
+        }
+
+        return fetcher(input, init);
+      },
+      retry: { maxRetries: 1, baseDelayMs: 0, jitter: false },
+      hooks: {
+        onRequest: (event) => {
+          events.push(`request:${event.operation}:${event.attempt}`);
+        },
+        onRetry: (event) => {
+          events.push(`retry:${event.operation}:${event.status}`);
+        },
+        onResponse: (event) => {
+          events.push(`response:${event.operation}:${event.status}`);
+        }
+      }
+    });
+
+    const first = await client.authorize(kneeReplacementMissingDocs);
+
+    assert.strictEqual(first.status, "info-needed");
+    assert.deepStrictEqual(events.slice(0, 4), [
+      "request:authorize:0",
+      "response:authorize:503",
+      "retry:authorize:503",
+      "request:authorize:1"
+    ]);
+  });
+
+  it("keeps HTTP errors narrowable as ProtocolError", async () => {
+    const client = createX278HttpClient({
+      baseUrl: "http://payer.example",
+      fetch: async () => json({ error: { reason: "bad-request" } }, 400),
+      retry: { maxRetries: 0 }
+    });
+
+    let caught: unknown;
+    try {
+      await client.authorize(kneeReplacementMissingDocs);
+    } catch (error) {
+      caught = error;
+    }
+
+    assert.ok(caught instanceof ProtocolError);
+    assert.strictEqual(caught.kind, "transport");
+    assert.strictEqual(caught.reason, "http-error");
+  });
+
+  it("creates a client from environment variables", async () => {
+    const { fetcher } = createFetchBackedPayer();
+    const client = createX278HttpClientFromEnv(
+      {
+        X278_PAYER_URL: "http://payer.example",
+        X278_BEARER_TOKEN: "test-token"
+      },
+      { fetch: fetcher }
+    );
+
+    const first = await client.authorize(kneeReplacementMissingDocs);
+
+    assert.strictEqual(first.status, "info-needed");
   });
 });

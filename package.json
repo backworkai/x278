@@ -51,6 +51,9 @@
       "fhir-pas": [
         "dist/fhir-pas.d.ts"
       ],
+      "http": [
+        "dist/http.d.ts"
+      ],
       "payer-agent": [
         "dist/payer-agent.d.ts"
       ],
@@ -121,6 +124,16 @@
       "require": {
         "types": "./dist/fhir-pas.d.cts",
         "default": "./dist/fhir-pas.cjs"
+      }
+    },
+    "./http": {
+      "import": {
+        "types": "./dist/http.d.mts",
+        "default": "./dist/http.mjs"
+      },
+      "require": {
+        "types": "./dist/http.d.cts",
+        "default": "./dist/http.cjs"
       }
     },
     "./payer-agent": {

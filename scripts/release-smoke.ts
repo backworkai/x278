@@ -84,7 +84,12 @@ const assertPackagePayload = (files: ReadonlyArray<PackFile>) => {
     "dist/sdk.d.ts",
     "dist/sdk.d.ts.map",
     "dist/sdk.d.mts",
-    "dist/sdk.d.cts"
+    "dist/sdk.d.cts",
+    "dist/http.mjs",
+    "dist/http.cjs",
+    "dist/http.d.ts",
+    "dist/http.d.mts",
+    "dist/http.d.cts"
   ];
   const forbiddenPrefixes = [
     ".github/",
@@ -135,6 +140,7 @@ import {
 } from "@backwork/x278/types";
 import { DeterminationSchema } from "@backwork/x278/schemas";
 import { toPasClaimBundle } from "@backwork/x278/fhir-pas";
+import { createX278HttpClient } from "@backwork/x278/http";
 import { makeReferencePayerAgent } from "@backwork/x278/payer-agent";
 import { ProviderClient } from "@backwork/x278/provider-client";
 import { requestHash } from "@backwork/x278/signing";
@@ -172,6 +178,7 @@ void DeterminationSchema;
 void makeReferencePayerAgent;
 void ProviderClient;
 void requestHash;
+void createX278HttpClient;
 `;
 
 const cjsConsumerSource = `
@@ -185,6 +192,7 @@ const { createX278Client } = require("@backwork/x278/sdk");
 const { AuthorizationRequestSchema } = require("@backwork/x278/types");
 const { DeterminationSchema } = require("@backwork/x278/schemas");
 const { toPasClaimBundle } = require("@backwork/x278/fhir-pas");
+const { createX278HttpClient } = require("@backwork/x278/http");
 const { makeReferencePayerAgent } = require("@backwork/x278/payer-agent");
 const { ProviderClient } = require("@backwork/x278/provider-client");
 const { requestHash } = require("@backwork/x278/signing");
@@ -222,6 +230,7 @@ const { requestHash } = require("@backwork/x278/signing");
   void makeReferencePayerAgent;
   void ProviderClient;
   void requestHash;
+  void createX278HttpClient;
 })();
 `;
 

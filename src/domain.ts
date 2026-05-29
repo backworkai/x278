@@ -111,11 +111,16 @@ export type ProtocolErrorReason =
   | "evidence-required"
   | "evidence-collection-failed"
   | "max-steps-exceeded"
+  | "http-error"
+  | "http-timeout"
+  | "http-request-failed"
+  | "missing-base-url"
   | "transport-authorize-failed"
   | "transport-resume-failed"
   | "transport-await-failed"
   | "transport-audit-failed"
   | "transport-verify-failed"
+  | "transport-capabilities-failed"
   | (string & {});
 
 /**
@@ -198,6 +203,22 @@ export interface SignatureReceipt {
   readonly payloadHash: string;
   readonly nonce: string;
   readonly signature: string;
+}
+
+export interface X278Capabilities {
+  readonly protocol: "x278";
+  readonly implementation: string;
+  readonly endpoints: {
+    readonly authorize: string;
+    readonly resume: string;
+    readonly awaitDetermination: string;
+    readonly auditLog?: string;
+    readonly verify?: string;
+  };
+  readonly signing?: {
+    readonly alg: SignatureReceipt["alg"];
+    readonly publicKeyPem?: string;
+  };
 }
 
 export const SignatureReceiptSchema = Schema.Struct({

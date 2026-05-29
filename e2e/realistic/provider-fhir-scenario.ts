@@ -15,8 +15,8 @@ import {
   nonCoveredService,
   spinalStimulatorReview
 } from "../../src/fixtures.js";
+import { createX278HttpTransport } from "../../src/http.js";
 import { createX278Client } from "../../src/sdk.js";
-import { createX278HttpTransport } from "./http-transport.js";
 
 const payerUrl = process.env.X278_PAYER_URL ?? "http://localhost:8787";
 const fhirBaseUrl = process.env.FHIR_BASE_URL ?? "http://localhost:8080/fhir";
