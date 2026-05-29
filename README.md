@@ -133,8 +133,12 @@ For local parity, `createX278HttpClientFromEnv()` reads `X278_PAYER_URL` and
 | `@backwork/x278/conformance` | Conformance harness for x278 transports |
 | `@backwork/x278/types` | Protocol schemas, domain types, and typed errors |
 | `@backwork/x278/schemas` | Schema-focused alias for protocol validation |
+| `@backwork/x278/evidence` | DTR-style evidence and QuestionnaireResponse helpers |
 | `@backwork/x278/fhir-pas` | FHIR/PAS/DTR mapping helpers |
+| `@backwork/x278/policy` | Versioned executable policy adapter interface |
 | `@backwork/x278/signing` | Canonical hashing and signed receipt utilities |
+| `@backwork/x278/smart` | SMART Backend Services token provider utilities |
+| `@backwork/x278/subscriptions` | Local subscription/webhook broker helpers |
 | `@backwork/x278/payer-agent` | Reference payer agent service |
 | `@backwork/x278/provider-client` | Lower-level provider loop primitives |
 
@@ -167,6 +171,21 @@ if (!report.ok) {
 The harness exercises the core behaviors described by the protocol: approval,
 denial, information-needed retry, pended review, signature verification, audit
 records, and bounded workflow handling.
+
+Conformance reports can also be serialized for release artifacts:
+
+```ts
+import {
+  runX278Conformance,
+  toConformanceBadge,
+  toConformanceMarkdown
+} from "@backwork/x278";
+
+const report = await runX278Conformance(transport);
+
+console.log(toConformanceMarkdown(report));
+console.log(toConformanceBadge(report));
+```
 
 ## Examples
 

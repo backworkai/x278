@@ -1,6 +1,6 @@
 {
   "name": "@backwork/x278",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Agent-native prior authorization protocol reference implementation and TypeScript SDK.",
   "license": "MIT",
   "repository": {
@@ -48,6 +48,9 @@
       "schemas": [
         "dist/domain.d.ts"
       ],
+      "evidence": [
+        "dist/evidence.d.ts"
+      ],
       "fhir-pas": [
         "dist/fhir-pas.d.ts"
       ],
@@ -57,11 +60,20 @@
       "payer-agent": [
         "dist/payer-agent.d.ts"
       ],
+      "policy": [
+        "dist/policy.d.ts"
+      ],
       "provider-client": [
         "dist/provider-client.d.ts"
       ],
       "signing": [
         "dist/signing.d.ts"
+      ],
+      "smart": [
+        "dist/smart.d.ts"
+      ],
+      "subscriptions": [
+        "dist/subscriptions.d.ts"
       ]
     }
   },
@@ -126,6 +138,16 @@
         "default": "./dist/fhir-pas.cjs"
       }
     },
+    "./evidence": {
+      "import": {
+        "types": "./dist/evidence.d.mts",
+        "default": "./dist/evidence.mjs"
+      },
+      "require": {
+        "types": "./dist/evidence.d.cts",
+        "default": "./dist/evidence.cjs"
+      }
+    },
     "./http": {
       "import": {
         "types": "./dist/http.d.mts",
@@ -146,6 +168,16 @@
         "default": "./dist/payer-agent.cjs"
       }
     },
+    "./policy": {
+      "import": {
+        "types": "./dist/policy.d.mts",
+        "default": "./dist/policy.mjs"
+      },
+      "require": {
+        "types": "./dist/policy.d.cts",
+        "default": "./dist/policy.cjs"
+      }
+    },
     "./provider-client": {
       "import": {
         "types": "./dist/provider-client.d.mts",
@@ -164,6 +196,26 @@
       "require": {
         "types": "./dist/signing.d.cts",
         "default": "./dist/signing.cjs"
+      }
+    },
+    "./smart": {
+      "import": {
+        "types": "./dist/smart.d.mts",
+        "default": "./dist/smart.mjs"
+      },
+      "require": {
+        "types": "./dist/smart.d.cts",
+        "default": "./dist/smart.cjs"
+      }
+    },
+    "./subscriptions": {
+      "import": {
+        "types": "./dist/subscriptions.d.mts",
+        "default": "./dist/subscriptions.mjs"
+      },
+      "require": {
+        "types": "./dist/subscriptions.d.cts",
+        "default": "./dist/subscriptions.cjs"
       }
     }
   },

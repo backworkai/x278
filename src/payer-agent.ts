@@ -3,12 +3,8 @@ import type {
   AuditRecord,
   AuthorizationRequest,
   Determination,
-  DocumentationRequirement,
-  InfoNeededDetermination,
-  PendedDetermination,
   SupportingInfo,
   TerminalDetermination,
-  UnsignedApprovedDetermination,
   UnsignedTerminalDetermination
 } from "./domain.js";
 import {
@@ -23,8 +19,13 @@ import {
   signDetermination,
   verifyDetermination
 } from "./signing.js";
-
-const ruleSetVersion = "backwork/reference-medical-policy@2026.1";
+import {
+  type X278PolicyAdapter,
+  type X278PolicyDecision,
+  createPolicyEvaluationContext,
+  createReferencePolicyAdapter,
+  resolvePolicyDecision
+} from "./policy.js";
 
 interface PendingAuth {
   readonly request: AuthorizationRequest;
@@ -67,105 +68,10 @@ export class PayerAgent extends Context.Tag("PayerAgent")<
   PayerAgentService
 >() {}
 
-const daysFromNow = (days: number): string =>
-  new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
-
-const addDays = (date: string, days: number): string => {
-  const parsed = new Date(`${date}T00:00:00.000Z`);
-  parsed.setUTCDate(parsed.getUTCDate() + days);
-  return parsed.toISOString().slice(0, 10);
-};
-
-const authNumber = (authId: string): string =>
-  `BW-${authId.slice(0, 8).toUpperCase()}`;
-
-const questionnaireUrl = (id: string): string =>
-  `https://backwork.example/fhir/Questionnaire/${id}`;
-
-const kneeRequirements: ReadonlyArray<DocumentationRequirement> = [
-  {
-    id: "conservative-tx-6wk",
-    description: "Evidence of at least six weeks of conservative treatment",
-    questionnaire: questionnaireUrl("conservative-tx-6wk")
-  },
-  {
-    id: "weight-bearing-xray",
-    description: "Recent weight-bearing knee x-ray report",
-    questionnaire: questionnaireUrl("weight-bearing-xray")
-  }
-];
-
-const missingRequirements = (
-  request: AuthorizationRequest,
-  requirements: ReadonlyArray<DocumentationRequirement>
-): ReadonlyArray<DocumentationRequirement> => {
-  const supplied = new Set(request.supportingInfo.map((item) => item.id));
-  return requirements.filter((requirement) => !supplied.has(requirement.id));
-};
-
-const base = (authId: string) => ({
-  authId,
-  ruleSetVersion,
-  expiresAt: null
-});
-
-const evaluateRules = (
-  authId: string,
-  request: AuthorizationRequest
-):
-  | UnsignedTerminalDetermination
-  | InfoNeededDetermination
-  | PendedDetermination => {
-  if (request.service.code === "99999") {
-    return {
-      ...base(authId),
-      status: "denied",
-      nextAction: "appeal",
-      determinationBy: "rules",
-      reasonCode: "not-covered",
-      reasonText: "The requested service is not covered by the reference policy.",
-      appealPath: "https://backwork.example/appeals"
-    };
-  }
-
-  if (request.service.code === "63650") {
-    return {
-      ...base(authId),
-      status: "pended",
-      nextAction: "await-payer",
-      pendingReason: "human-review",
-      subscription: `x278://subscription/${authId}`,
-      expiresAt: daysFromNow(7),
-      determinationBy: "clinical-reviewer"
-    };
-  }
-
-  if (request.service.code === "27447") {
-    const missing = missingRequirements(request, kneeRequirements);
-    if (missing.length > 0) {
-      return {
-        ...base(authId),
-        status: "info-needed",
-        nextAction: "attach-evidence",
-        documentationRequired: missing,
-        resumeToken: `rt_${crypto.randomUUID()}`,
-        expiresAt: daysFromNow(7),
-        determinationBy: null
-      };
-    }
-  }
-
-  return {
-    ...base(authId),
-    status: "approved",
-    nextAction: "none",
-    authNumber: authNumber(authId),
-    approvedUnits: request.service.units,
-    validFrom: request.service.requestedStart,
-    validThrough: addDays(request.service.requestedStart, 90),
-    determinationBy: "rules"
-  };
-};
+export interface PayerAgentOptions {
+  readonly policy?: X278PolicyAdapter;
+  readonly keyId?: string;
+}
 
 const mergeEvidence = (
   request: AuthorizationRequest,
@@ -186,14 +92,19 @@ const attachSignature = (
   return { ...determination, signature };
 };
 
-export const makeReferencePayerAgent: Effect.Effect<PayerAgentService> =
+export const makePayerAgent = (
+  options: PayerAgentOptions = {}
+): Effect.Effect<PayerAgentService> =>
   Effect.gen(function* () {
+    const policy = options.policy ?? createReferencePolicyAdapter();
     const stateRef = yield* Ref.make<PayerState>({
       pending: new Map(),
       pended: new Map(),
       audit: []
     });
-    const keyPair = generatePayerKeyPair("did:web:backwork.example#x278-dev");
+    const keyPair = generatePayerKeyPair(
+      options.keyId ?? "did:web:backwork.example#x278-dev"
+    );
 
     const appendAudit = (
       request: AuthorizationRequest,
@@ -222,10 +133,7 @@ export const makeReferencePayerAgent: Effect.Effect<PayerAgentService> =
 
     const materialize = (
       request: AuthorizationRequest,
-      determination:
-        | UnsignedTerminalDetermination
-        | InfoNeededDetermination
-        | PendedDetermination
+      determination: X278PolicyDecision
     ): Effect.Effect<Determination> => {
       if (
         determination.status === "approved" ||
@@ -241,7 +149,14 @@ export const makeReferencePayerAgent: Effect.Effect<PayerAgentService> =
       Effect.gen(function* () {
         const request = yield* decodeAuthorizationRequest(raw);
         const authId = crypto.randomUUID().replaceAll("-", "");
-        const result = evaluateRules(authId, request);
+        const context = createPolicyEvaluationContext(
+          authId,
+          policy.ruleSetVersion
+        );
+        const result = yield* resolvePolicyDecision(
+          policy.evaluate(request, context),
+          "policy-evaluation-failed"
+        );
         const state = yield* Ref.get(stateRef);
 
         if (result.status === "info-needed") {
@@ -278,7 +193,14 @@ export const makeReferencePayerAgent: Effect.Effect<PayerAgentService> =
 
         const decodedEvidence = yield* decodeSupportingInfoList(evidence);
         const request = mergeEvidence(pending.request, decodedEvidence);
-        const result = evaluateRules(authId, request);
+        const context = createPolicyEvaluationContext(
+          authId,
+          policy.ruleSetVersion
+        );
+        const result = yield* resolvePolicyDecision(
+          policy.evaluate(request, context),
+          "policy-evaluation-failed"
+        );
 
         if (result.status !== "info-needed") {
           state.pending.delete(authId);
@@ -308,16 +230,22 @@ export const makeReferencePayerAgent: Effect.Effect<PayerAgentService> =
 
         state.pended.delete(subscription);
 
-        const determination: UnsignedApprovedDetermination = {
-          ...base(pended.authId),
-          status: "approved",
-          nextAction: "none",
-          authNumber: authNumber(pended.authId),
-          approvedUnits: pended.request.service.units,
-          validFrom: pended.request.service.requestedStart,
-          validThrough: addDays(pended.request.service.requestedStart, 90),
-          determinationBy: "clinical-reviewer"
+        const context = {
+          ...createPolicyEvaluationContext(
+            pended.authId,
+            policy.ruleSetVersion
+          ),
+          subscription
         };
+        const determination = yield* resolvePolicyDecision(
+          policy.review
+            ? policy.review(pended.request, context)
+            : createReferencePolicyAdapter(policy.ruleSetVersion).review!(
+                pended.request,
+                context
+              ),
+          "policy-review-failed"
+        );
 
         return yield* signAndRecord(pended.request, determination);
       });
@@ -334,5 +262,8 @@ export const makeReferencePayerAgent: Effect.Effect<PayerAgentService> =
         )
     };
   });
+
+export const makeReferencePayerAgent: Effect.Effect<PayerAgentService> =
+  makePayerAgent();
 
 export const PayerAgentLive = Layer.effect(PayerAgent, makeReferencePayerAgent);

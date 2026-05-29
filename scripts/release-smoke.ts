@@ -89,7 +89,19 @@ const assertPackagePayload = (files: ReadonlyArray<PackFile>) => {
     "dist/http.cjs",
     "dist/http.d.ts",
     "dist/http.d.mts",
-    "dist/http.d.cts"
+    "dist/http.d.cts",
+    "dist/evidence.mjs",
+    "dist/evidence.cjs",
+    "dist/evidence.d.ts",
+    "dist/policy.mjs",
+    "dist/policy.cjs",
+    "dist/policy.d.ts",
+    "dist/smart.mjs",
+    "dist/smart.cjs",
+    "dist/smart.d.ts",
+    "dist/subscriptions.mjs",
+    "dist/subscriptions.cjs",
+    "dist/subscriptions.d.ts"
   ];
   const forbiddenPrefixes = [
     ".github/",
@@ -139,11 +151,15 @@ import {
   type AuthorizationRequest
 } from "@backwork/x278/types";
 import { DeterminationSchema } from "@backwork/x278/schemas";
+import { createEvidenceForRequirements } from "@backwork/x278/evidence";
 import { toPasClaimBundle } from "@backwork/x278/fhir-pas";
 import { createX278HttpClient } from "@backwork/x278/http";
 import { makeReferencePayerAgent } from "@backwork/x278/payer-agent";
+import { createReferencePolicyAdapter } from "@backwork/x278/policy";
 import { ProviderClient } from "@backwork/x278/provider-client";
 import { requestHash } from "@backwork/x278/signing";
+import { createSmartBackendTokenProvider } from "@backwork/x278/smart";
+import { createX278SubscriptionBroker } from "@backwork/x278/subscriptions";
 
 const request: AuthorizationRequest = kneeReplacementMissingDocs;
 const payer = createMockPayer();
@@ -179,6 +195,10 @@ void makeReferencePayerAgent;
 void ProviderClient;
 void requestHash;
 void createX278HttpClient;
+void createEvidenceForRequirements;
+void createReferencePolicyAdapter;
+void createSmartBackendTokenProvider;
+void createX278SubscriptionBroker;
 `;
 
 const cjsConsumerSource = `
@@ -191,11 +211,15 @@ const {
 const { createX278Client } = require("@backwork/x278/sdk");
 const { AuthorizationRequestSchema } = require("@backwork/x278/types");
 const { DeterminationSchema } = require("@backwork/x278/schemas");
+const { createEvidenceForRequirements } = require("@backwork/x278/evidence");
 const { toPasClaimBundle } = require("@backwork/x278/fhir-pas");
 const { createX278HttpClient } = require("@backwork/x278/http");
 const { makeReferencePayerAgent } = require("@backwork/x278/payer-agent");
+const { createReferencePolicyAdapter } = require("@backwork/x278/policy");
 const { ProviderClient } = require("@backwork/x278/provider-client");
 const { requestHash } = require("@backwork/x278/signing");
+const { createSmartBackendTokenProvider } = require("@backwork/x278/smart");
+const { createX278SubscriptionBroker } = require("@backwork/x278/subscriptions");
 
 (async () => {
   const request = kneeReplacementMissingDocs;
@@ -231,6 +255,10 @@ const { requestHash } = require("@backwork/x278/signing");
   void ProviderClient;
   void requestHash;
   void createX278HttpClient;
+  void createEvidenceForRequirements;
+  void createReferencePolicyAdapter;
+  void createSmartBackendTokenProvider;
+  void createX278SubscriptionBroker;
 })();
 `;
 

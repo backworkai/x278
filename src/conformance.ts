@@ -29,6 +29,20 @@ export interface ConformanceReport {
   readonly checks: ReadonlyArray<ConformanceCheck>;
 }
 
+export interface ConformanceBadge {
+  readonly schemaVersion: 1;
+  readonly label: "x278";
+  readonly message: "passing" | "failing";
+  readonly color: "brightgreen" | "red";
+}
+
+export interface ConformanceSummary {
+  readonly passed: boolean;
+  readonly total: number;
+  readonly passedCount: number;
+  readonly failedCount: number;
+}
+
 const conformanceEvidence = (
   requirements: ReadonlyArray<DocumentationRequirement>
 ): ReadonlyArray<SupportingInfo> =>
@@ -49,6 +63,57 @@ const check = (
   passed,
   details
 });
+
+export const summarizeConformanceReport = (
+  report: ConformanceReport
+): ConformanceSummary => {
+  const passedCount = report.checks.filter((item) => item.passed).length;
+  const total = report.checks.length;
+
+  return {
+    passed: report.passed,
+    total,
+    passedCount,
+    failedCount: total - passedCount
+  };
+};
+
+export const toConformanceBadge = (
+  report: ConformanceReport
+): ConformanceBadge => ({
+  schemaVersion: 1,
+  label: "x278",
+  message: report.passed ? "passing" : "failing",
+  color: report.passed ? "brightgreen" : "red"
+});
+
+export const toConformanceJson = (report: ConformanceReport): string =>
+  `${JSON.stringify(report, null, 2)}\n`;
+
+export const toConformanceMarkdown = (
+  report: ConformanceReport
+): string => {
+  const summary = summarizeConformanceReport(report);
+  const rows = report.checks
+    .map(
+      (item) =>
+        `| \`${item.id}\` | ${item.passed ? "pass" : "fail"} | ${item.description} |`
+    )
+    .join("\n");
+
+  return [
+    "# x278 Conformance Report",
+    "",
+    `Checked at: \`${report.checkedAt}\``,
+    "",
+    `Result: **${report.passed ? "pass" : "fail"}** (${summary.passedCount}/${summary.total})`,
+    "",
+    "| Check | Status | Description |",
+    "| --- | --- | --- |",
+    rows,
+    ""
+  ].join("\n");
+};
 
 export const runX278ConformanceEffect = (
   client: X278EffectClient

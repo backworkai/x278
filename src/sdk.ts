@@ -4,6 +4,7 @@ import type {
   AuthorizationRequest,
   Determination,
   DocumentationRequirement,
+  PendedDetermination,
   SupportingInfo,
   TerminalDetermination,
   X278Capabilities
@@ -18,7 +19,9 @@ import {
   decodeTerminalDetermination
 } from "./domain.js";
 import {
+  type PayerAgentOptions,
   type PayerAgentService,
+  makePayerAgent,
   makeReferencePayerAgent
 } from "./payer-agent.js";
 
@@ -109,6 +112,14 @@ export interface X278ClientOptions {
     | ReadonlyArray<SupportingInfo>
     | Promise<ReadonlyArray<SupportingInfo>>
     | Effect.Effect<ReadonlyArray<SupportingInfo>, ProtocolError>;
+  readonly awaitPended?: (
+    request: AuthorizationRequest,
+    pended: PendedDetermination,
+    context: EvidenceCollectionContext
+  ) =>
+    | TerminalDetermination
+    | Promise<TerminalDetermination>
+    | Effect.Effect<TerminalDetermination, ProtocolError>;
 }
 
 /**
@@ -246,6 +257,42 @@ const collectEvidenceEffect = (
     }
 
     return decodeSupportingInfoList(result ?? []);
+  });
+};
+
+const awaitPendedEffect = (
+  request: AuthorizationRequest,
+  pended: PendedDetermination,
+  context: EvidenceCollectionContext,
+  options: X278ClientOptions
+): Effect.Effect<TerminalDetermination, ProtocolError> => {
+  if (!options.awaitPended) {
+    return Effect.fail(
+      new ProtocolError({
+        kind: "workflow",
+        reason: "unknown-subscription",
+        detail: pended.subscription
+      })
+    );
+  }
+
+  const awaitPended = options.awaitPended;
+
+  return Effect.suspend(() => {
+    const result = awaitPended(request, pended, context);
+
+    if (isEffect<TerminalDetermination, ProtocolError>(result)) {
+      return result.pipe(Effect.flatMap(decodeTerminalDetermination));
+    }
+
+    if (result instanceof Promise) {
+      return fromPromise(
+        () => result,
+        "transport-await-failed"
+      ).pipe(Effect.flatMap(decodeTerminalDetermination));
+    }
+
+    return decodeTerminalDetermination(result);
   });
 };
 
@@ -395,7 +442,14 @@ export const createX278EffectClient = (
         }
 
         if (current.status === "pended") {
-          current = yield* transport.awaitDetermination(current.subscription);
+          current = yield* (options.awaitPended
+            ? awaitPendedEffect(
+                workingRequest,
+                current,
+                { authId: current.authId, attempt },
+                options
+              )
+            : transport.awaitDetermination(current.subscription));
           steps.push(current);
           continue;
         }
@@ -483,10 +537,14 @@ export const createX278Client = (
  * const payer = createMockPayer();
  * const client = createX278Client(payer);
  */
-export const createMockPayer = (): X278Transport & {
+export const createMockPayer = (
+  options: PayerAgentOptions = {}
+): X278Transport & {
   readonly publicKeyPem: string;
 } => {
-  const payer = Effect.runSync(makeReferencePayerAgent);
+  const payer = Effect.runSync(
+    options.policy || options.keyId ? makePayerAgent(options) : makeReferencePayerAgent
+  );
 
   return {
     authorize: (request) => runProtocolPromise(payer.authorize(request)),
@@ -500,6 +558,18 @@ export const createMockPayer = (): X278Transport & {
     publicKeyPem: payer.publicKeyPem
   };
 };
+
+/**
+ * Creates a deterministic in-memory payer with custom policy options.
+ *
+ * @example
+ * const payer = createConfiguredMockPayer({ policy });
+ */
+export const createConfiguredMockPayer = (
+  options: PayerAgentOptions = {}
+): X278Transport & {
+  readonly publicKeyPem: string;
+} => createMockPayer(options);
 
 /**
  * Creates a Promise client wired to the deterministic in-memory payer.
