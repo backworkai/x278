@@ -9,6 +9,8 @@ import type {
 } from "./domain.js";
 import {
   ProtocolError,
+  type ProtocolErrorKind,
+  type ProtocolErrorReason,
   decodeAuthorizationRequest,
   decodeDetermination,
   decodeSupportingInfoList,
@@ -19,6 +21,12 @@ import {
   makeReferencePayerAgent
 } from "./payer-agent.js";
 
+/**
+ * Effect-native transport implemented by payer adapters.
+ *
+ * @example
+ * const client = createX278EffectClient(fromPayerAgent(payer));
+ */
 export interface X278EffectTransport {
   readonly authorize: (
     request: AuthorizationRequest
@@ -38,6 +46,16 @@ export interface X278EffectTransport {
   ) => Effect.Effect<boolean, ProtocolError>;
 }
 
+/**
+ * Promise transport for applications that do not expose Effect at their edge.
+ *
+ * @example
+ * const client = createX278Client({
+ *   authorize: (request) => fetchDetermination(request),
+ *   resume: (authId, token, evidence) => resumeDetermination(authId, token, evidence),
+ *   awaitDetermination: (subscription) => waitForFinal(subscription)
+ * });
+ */
 export interface X278Transport {
   readonly authorize: (request: AuthorizationRequest) => Promise<Determination>;
   readonly resume: (
@@ -55,11 +73,29 @@ export interface X278Transport {
   ) => Promise<boolean>;
 }
 
+/**
+ * Context passed to evidence collection hooks during an info-needed retry.
+ */
 export interface EvidenceCollectionContext {
   readonly authId: string;
   readonly attempt: number;
 }
 
+/**
+ * Client behavior knobs. Defaults keep the loop bounded and require callers to
+ * opt into automatic evidence collection.
+ *
+ * @example
+ * const client = createMockX278Client({
+ *   maxSteps: 4,
+ *   collectEvidence: (_request, requirements) =>
+ *     requirements.map((requirement) => ({
+ *       id: requirement.id,
+ *       value: "chart evidence",
+ *       source: "chart"
+ *     }))
+ * });
+ */
 export interface X278ClientOptions {
   readonly maxSteps?: number;
   readonly collectEvidence?: (
@@ -72,6 +108,9 @@ export interface X278ClientOptions {
     | Effect.Effect<ReadonlyArray<SupportingInfo>, ProtocolError>;
 }
 
+/**
+ * Full transcript for a provider-side request loop.
+ */
 export interface X278RequestTrace {
   readonly originalRequest: AuthorizationRequest;
   readonly finalRequest: AuthorizationRequest;
@@ -79,6 +118,9 @@ export interface X278RequestTrace {
   readonly final: TerminalDetermination;
 }
 
+/**
+ * Effect-native x278 client that validates unknown inputs before transport use.
+ */
 export interface X278EffectClient {
   readonly authorize: (
     request: unknown
@@ -104,6 +146,13 @@ export interface X278EffectClient {
   ) => Effect.Effect<boolean, ProtocolError>;
 }
 
+/**
+ * Promise x278 client for provider applications.
+ *
+ * @example
+ * const client = createMockX278Client({ collectEvidence });
+ * const determination = await client.request(authorizationRequest);
+ */
 export interface X278Client {
   readonly authorize: (request: unknown) => Promise<Determination>;
   readonly resume: (
@@ -125,11 +174,12 @@ export interface X278Client {
 
 const fromPromise = <A>(
   promise: () => Promise<A>,
-  reason: string
+  reason: ProtocolErrorReason,
+  kind: ProtocolErrorKind = "transport"
 ): Effect.Effect<A, ProtocolError> =>
   Effect.tryPromise({
     try: promise,
-    catch: (detail) => new ProtocolError({ reason, detail })
+    catch: (detail) => new ProtocolError({ kind, reason, detail })
   });
 
 const runProtocolPromise = async <A>(
@@ -161,6 +211,7 @@ const collectEvidenceEffect = (
   if (!options.collectEvidence) {
     return Effect.fail(
       new ProtocolError({
+        kind: "workflow",
         reason: "evidence-required",
         detail: requirements
       })
@@ -177,7 +228,11 @@ const collectEvidenceEffect = (
     }
 
     if (result instanceof Promise) {
-      return fromPromise(() => result, "evidence-collection-failed").pipe(
+      return fromPromise(
+        () => result,
+        "evidence-collection-failed",
+        "workflow"
+      ).pipe(
         Effect.flatMap(decodeSupportingInfoList)
       );
     }
@@ -230,6 +285,13 @@ const toEffectTransport = (transport: X278Transport): X278EffectTransport => {
   };
 };
 
+/**
+ * Adapts an Effect payer service into an SDK transport.
+ *
+ * @example
+ * const transport = fromPayerAgent(payer);
+ * const client = createX278EffectClient(transport);
+ */
 export const fromPayerAgent = (
   payer: PayerAgentService
 ): X278EffectTransport => ({
@@ -241,6 +303,13 @@ export const fromPayerAgent = (
   verify: (request, determination) => payer.verify(request, determination)
 });
 
+/**
+ * Creates an Effect-native provider client.
+ *
+ * @example
+ * const client = createX278EffectClient(transport, { maxSteps: 4 });
+ * const final = yield* client.request(request);
+ */
 export const createX278EffectClient = (
   transport: X278EffectTransport,
   options: X278ClientOptions = {}
@@ -316,6 +385,7 @@ export const createX278EffectClient = (
 
         return yield* Effect.fail(
           new ProtocolError({
+            kind: "payer",
             reason: current.reasonCode,
             detail: current.reasonText
           })
@@ -324,6 +394,7 @@ export const createX278EffectClient = (
 
       return yield* Effect.fail(
         new ProtocolError({
+          kind: "workflow",
           reason: "max-steps-exceeded",
           detail: { maxSteps, steps }
         })
@@ -345,6 +416,13 @@ export const createX278EffectClient = (
   };
 };
 
+/**
+ * Creates a Promise-based provider client.
+ *
+ * @example
+ * const client = createX278Client(transport, { collectEvidence });
+ * const final = await client.request(request);
+ */
 export const createX278Client = (
   transport: X278Transport,
   options: X278ClientOptions = {}
@@ -375,6 +453,13 @@ export const createX278Client = (
   };
 };
 
+/**
+ * Creates the deterministic in-memory payer used by examples and consumer tests.
+ *
+ * @example
+ * const payer = createMockPayer();
+ * const client = createX278Client(payer);
+ */
 export const createMockPayer = (): X278Transport & {
   readonly publicKeyPem: string;
 } => {
@@ -393,6 +478,13 @@ export const createMockPayer = (): X278Transport & {
   };
 };
 
+/**
+ * Creates a Promise client wired to the deterministic in-memory payer.
+ *
+ * @example
+ * const client = createMockX278Client({ collectEvidence });
+ * const final = await client.request(kneeReplacementMissingDocs);
+ */
 export const createMockX278Client = (
   options: X278ClientOptions = {}
 ): X278Client => createX278Client(createMockPayer(), options);

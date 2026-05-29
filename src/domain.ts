@@ -43,12 +43,23 @@ export const decodeSupportingInfoList = (
   Effect.suspend(() =>
     Schema.decodeUnknown(SupportingInfoListSchema)(input).pipe(
       Effect.mapError(
-        (detail) => new ProtocolError({ reason: "invalid-evidence", detail })
+        (detail) =>
+          new ProtocolError({
+            kind: "validation",
+            reason: "invalid-evidence",
+            detail
+          })
       )
     )
   ).pipe(
     Effect.catchAllDefect((detail) =>
-      Effect.fail(new ProtocolError({ reason: "invalid-evidence", detail }))
+      Effect.fail(
+        new ProtocolError({
+          kind: "validation",
+          reason: "invalid-evidence",
+          detail
+        })
+      )
     )
   );
 
@@ -84,10 +95,52 @@ export const AuthorizationRequestSchema = Schema.Struct({
 
 export type AuthorizationRequest = typeof AuthorizationRequestSchema.Type;
 
+export type ProtocolErrorKind =
+  | "validation"
+  | "transport"
+  | "workflow"
+  | "payer";
+
+export type ProtocolErrorReason =
+  | "invalid-request"
+  | "invalid-evidence"
+  | "invalid-determination"
+  | "invalid-terminal-determination"
+  | "invalid-resume-token"
+  | "unknown-subscription"
+  | "evidence-required"
+  | "evidence-collection-failed"
+  | "max-steps-exceeded"
+  | "transport-authorize-failed"
+  | "transport-resume-failed"
+  | "transport-await-failed"
+  | "transport-audit-failed"
+  | "transport-verify-failed"
+  | (string & {});
+
+/**
+ * Structured protocol failure raised by the SDK and Effect services.
+ *
+ * @example
+ * try {
+ *   await client.request(request);
+ * } catch (error) {
+ *   if (error instanceof ProtocolError && error.kind === "validation") {
+ *     console.error(error.reason, error.detail);
+ *   }
+ * }
+ */
 export class ProtocolError extends Data.TaggedError("ProtocolError")<{
-  readonly reason: string;
+  readonly reason: ProtocolErrorReason;
+  readonly kind?: ProtocolErrorKind;
   readonly detail?: unknown;
-}> {}
+  readonly requestId?: string;
+}> {
+  override get message(): string {
+    const kind = this.kind ? `${this.kind}: ` : "";
+    return `${kind}${this.reason}`;
+  }
+}
 
 export const decodeAuthorizationRequest = (
   input: unknown
@@ -95,12 +148,23 @@ export const decodeAuthorizationRequest = (
   Effect.suspend(() =>
     Schema.decodeUnknown(AuthorizationRequestSchema)(input).pipe(
       Effect.mapError(
-        (detail) => new ProtocolError({ reason: "invalid-request", detail })
+        (detail) =>
+          new ProtocolError({
+            kind: "validation",
+            reason: "invalid-request",
+            detail
+          })
       )
     )
   ).pipe(
     Effect.catchAllDefect((detail) =>
-      Effect.fail(new ProtocolError({ reason: "invalid-request", detail }))
+      Effect.fail(
+        new ProtocolError({
+          kind: "validation",
+          reason: "invalid-request",
+          detail
+        })
+      )
     )
   );
 
@@ -308,12 +372,23 @@ export const decodeDetermination = (
   Effect.suspend(() =>
     Schema.decodeUnknown(DeterminationSchema)(input).pipe(
       Effect.mapError(
-        (detail) => new ProtocolError({ reason: "invalid-determination", detail })
+        (detail) =>
+          new ProtocolError({
+            kind: "validation",
+            reason: "invalid-determination",
+            detail
+          })
       )
     )
   ).pipe(
     Effect.catchAllDefect((detail) =>
-      Effect.fail(new ProtocolError({ reason: "invalid-determination", detail }))
+      Effect.fail(
+        new ProtocolError({
+          kind: "validation",
+          reason: "invalid-determination",
+          detail
+        })
+      )
     )
   );
 
@@ -324,13 +399,21 @@ export const decodeTerminalDetermination = (
     Schema.decodeUnknown(TerminalDeterminationSchema)(input).pipe(
       Effect.mapError(
         (detail) =>
-          new ProtocolError({ reason: "invalid-terminal-determination", detail })
+          new ProtocolError({
+            kind: "validation",
+            reason: "invalid-terminal-determination",
+            detail
+          })
       )
     )
   ).pipe(
     Effect.catchAllDefect((detail) =>
       Effect.fail(
-        new ProtocolError({ reason: "invalid-terminal-determination", detail })
+        new ProtocolError({
+          kind: "validation",
+          reason: "invalid-terminal-determination",
+          detail
+        })
       )
     )
   );

@@ -66,15 +66,17 @@ const main = async () => {
       "release.proof.full-command",
       scripts["prove:full"]?.includes("test:live") === true &&
         scripts["prove:full"]?.includes("security:audit") === true &&
+        scripts["prove:full"]?.includes("release:attw") === true &&
         scripts["prove:full"]?.includes("docker:fhir") === true,
-      "prove:full runs security audit, live agents, release smoke, Docker transport, and HAPI FHIR validation"
+      "prove:full runs security audit, live agents, package export validation, Docker transport, and HAPI FHIR validation"
     ),
     check(
       "release.ci.full-local-proof",
       includes(workflow, "bun run docker:realistic") &&
         includes(workflow, "bun run docker:fhir") &&
-        includes(workflow, "bun run release:smoke"),
-      "CI runs release smoke plus both Docker scenarios on push and pull request"
+        includes(workflow, "bun run release:smoke") &&
+        includes(workflow, "bun run release:attw"),
+      "CI runs package smoke/export validation plus both Docker scenarios on push and pull request"
     ),
     check(
       "release.ci.manual-live-proof",
@@ -97,16 +99,19 @@ const main = async () => {
       includes(releaseSmoke, "forbiddenPrefixes") &&
         includes(releaseSmoke, "e2e/") &&
         includes(releaseSmoke, "test/") &&
-        includes(releaseSmoke, "dist/http-transport.js"),
+        includes(releaseSmoke, "dist/http-transport.cjs"),
       "release smoke rejects dev/test harness files from the packed package"
     ),
     check(
       "sdk.public-surface",
       !Object.hasOwn(exports, "./http") &&
+        JSON.stringify(exports).includes("\"require\"") &&
+        scripts["release:attw"] === "bun run scripts/attw.ts" &&
+        packageJson.private !== true &&
         packageFiles.includes("dist") &&
         packageFiles.includes("README.md") &&
         packageFiles.includes("LICENSE"),
-      "public exports exclude the test-only HTTP transport and package files are allow-listed"
+      "public exports are dual ESM/CJS, package publishing is enabled, test-only HTTP transport is excluded, and package files are allow-listed"
     ),
     check(
       "agents.real-model-proof",

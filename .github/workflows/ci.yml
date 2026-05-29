@@ -44,6 +44,9 @@ jobs:
       - name: Release smoke
         run: bun run release:smoke
 
+      - name: Package export validation
+        run: bun run release:attw
+
       - name: Realistic Docker scenario
         run: bun run docker:realistic
 

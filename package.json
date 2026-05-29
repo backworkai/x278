@@ -1,12 +1,11 @@
 {
   "name": "@backwork/x278",
   "version": "0.1.0",
-  "private": true,
   "description": "Agent-native prior authorization protocol reference implementation and TypeScript SDK.",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/backworkai/x278.git"
+    "url": "git+https://github.com/backworkai/x278.git"
   },
   "bugs": {
     "url": "https://github.com/backworkai/x278/issues"
@@ -25,45 +24,134 @@
   ],
   "type": "module",
   "packageManager": "bun@1.3.11",
+  "publishConfig": {
+    "access": "public"
+  },
   "sideEffects": false,
-  "main": "./dist/index.js",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
+  "engines": {
+    "node": ">=20"
+  },
+  "typesVersions": {
+    "*": {
+      "sdk": [
+        "dist/sdk.d.ts"
+      ],
+      "conformance": [
+        "dist/conformance.d.ts"
+      ],
+      "types": [
+        "dist/domain.d.ts"
+      ],
+      "schemas": [
+        "dist/domain.d.ts"
+      ],
+      "fhir-pas": [
+        "dist/fhir-pas.d.ts"
+      ],
+      "payer-agent": [
+        "dist/payer-agent.d.ts"
+      ],
+      "provider-client": [
+        "dist/provider-client.d.ts"
+      ],
+      "signing": [
+        "dist/signing.d.ts"
+      ]
+    }
+  },
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     },
     "./sdk": {
-      "types": "./dist/sdk.d.ts",
-      "import": "./dist/sdk.js"
+      "import": {
+        "types": "./dist/sdk.d.mts",
+        "default": "./dist/sdk.mjs"
+      },
+      "require": {
+        "types": "./dist/sdk.d.cts",
+        "default": "./dist/sdk.cjs"
+      }
     },
     "./conformance": {
-      "types": "./dist/conformance.d.ts",
-      "import": "./dist/conformance.js"
+      "import": {
+        "types": "./dist/conformance.d.mts",
+        "default": "./dist/conformance.mjs"
+      },
+      "require": {
+        "types": "./dist/conformance.d.cts",
+        "default": "./dist/conformance.cjs"
+      }
     },
     "./types": {
-      "types": "./dist/domain.d.ts",
-      "import": "./dist/domain.js"
+      "import": {
+        "types": "./dist/domain.d.mts",
+        "default": "./dist/domain.mjs"
+      },
+      "require": {
+        "types": "./dist/domain.d.cts",
+        "default": "./dist/domain.cjs"
+      }
     },
     "./schemas": {
-      "types": "./dist/domain.d.ts",
-      "import": "./dist/domain.js"
+      "import": {
+        "types": "./dist/domain.d.mts",
+        "default": "./dist/domain.mjs"
+      },
+      "require": {
+        "types": "./dist/domain.d.cts",
+        "default": "./dist/domain.cjs"
+      }
     },
     "./fhir-pas": {
-      "types": "./dist/fhir-pas.d.ts",
-      "import": "./dist/fhir-pas.js"
+      "import": {
+        "types": "./dist/fhir-pas.d.mts",
+        "default": "./dist/fhir-pas.mjs"
+      },
+      "require": {
+        "types": "./dist/fhir-pas.d.cts",
+        "default": "./dist/fhir-pas.cjs"
+      }
     },
     "./payer-agent": {
-      "types": "./dist/payer-agent.d.ts",
-      "import": "./dist/payer-agent.js"
+      "import": {
+        "types": "./dist/payer-agent.d.mts",
+        "default": "./dist/payer-agent.mjs"
+      },
+      "require": {
+        "types": "./dist/payer-agent.d.cts",
+        "default": "./dist/payer-agent.cjs"
+      }
     },
     "./provider-client": {
-      "types": "./dist/provider-client.d.ts",
-      "import": "./dist/provider-client.js"
+      "import": {
+        "types": "./dist/provider-client.d.mts",
+        "default": "./dist/provider-client.mjs"
+      },
+      "require": {
+        "types": "./dist/provider-client.d.cts",
+        "default": "./dist/provider-client.cjs"
+      }
     },
     "./signing": {
-      "types": "./dist/signing.d.ts",
-      "import": "./dist/signing.js"
+      "import": {
+        "types": "./dist/signing.d.mts",
+        "default": "./dist/signing.mjs"
+      },
+      "require": {
+        "types": "./dist/signing.d.cts",
+        "default": "./dist/signing.cjs"
+      }
     }
   },
   "files": [
@@ -74,7 +162,7 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsup && tsc -p tsconfig.build.json && bun run scripts/declaration-conditions.ts",
     "cert:check": "bun run scripts/certification-readiness.ts",
     "demo": "bun run src/demo.ts",
     "docker:down": "docker compose down --volumes --remove-orphans",
@@ -84,7 +172,8 @@
     "payer:http": "bun run e2e/realistic/payer-api.ts",
     "prepare": "bun run build",
     "prove": "bun run dogfood && vitest run test/proof.test.ts",
-    "prove:full": "bun run cert:check && bun run security:audit && bun run typecheck && bun run test && bun run test:live && bun run build && bun run release:smoke && bun run docker:realistic && bun run docker:fhir",
+    "prove:full": "bun run cert:check && bun run security:audit && bun run typecheck && bun run test && bun run test:live && bun run build && bun run release:smoke && bun run release:attw && bun run docker:realistic && bun run docker:fhir",
+    "release:attw": "bun run scripts/attw.ts",
     "release:smoke": "bun run scripts/release-smoke.ts",
     "scenario:fhir": "bun run e2e/realistic/provider-fhir-scenario.ts",
     "scenario:realistic": "bun run e2e/realistic/provider-scenario.ts",
@@ -100,9 +189,11 @@
   },
   "devDependencies": {
     "@anthropic-ai/sdk": "^0.100.0",
+    "@arethetypeswrong/core": "^0.18.2",
     "@effect/vitest": "^0.29.0",
     "@openai/agents": "^0.11.5",
     "@types/bun": "^1.3.14",
+    "tsup": "^8.5.1",
     "typescript": "5.9.3",
     "vitest": "3.2.4"
   }

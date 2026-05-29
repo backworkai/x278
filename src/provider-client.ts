@@ -83,6 +83,7 @@ export const ProviderClientLive = Layer.effect(
 
         return yield* Effect.fail(
           new ProtocolError({
+            kind: "payer",
             reason: result.reasonCode,
             detail: result.reasonText
           })

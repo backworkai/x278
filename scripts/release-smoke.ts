@@ -51,7 +51,15 @@ function assert(condition: unknown, message: string): asserts condition {
 }
 
 const parsePackResult = (stdout: string): PackResult => {
-  const parsed = JSON.parse(stdout) as unknown;
+  const clean = stdout.replace(/\u001b\[[0-?]*[ -/]*[@-~]/g, "");
+  const start = clean.indexOf("[");
+  const end = clean.lastIndexOf("]");
+
+  if (start === -1 || end === -1 || end < start) {
+    throw new Error("npm pack did not return JSON output");
+  }
+
+  const parsed = JSON.parse(clean.slice(start, end + 1)) as unknown;
   assert(Array.isArray(parsed), "npm pack did not return a JSON array");
   const first = parsed[0] as Partial<PackResult> | undefined;
   assert(first?.filename, "npm pack did not return a filename");
@@ -65,10 +73,18 @@ const assertPackagePayload = (files: ReadonlyArray<PackFile>) => {
     "README.md",
     "LICENSE",
     "package.json",
-    "dist/index.js",
+    "dist/index.mjs",
+    "dist/index.cjs",
     "dist/index.d.ts",
-    "dist/sdk.js",
-    "dist/sdk.d.ts"
+    "dist/index.d.ts.map",
+    "dist/index.d.mts",
+    "dist/index.d.cts",
+    "dist/sdk.mjs",
+    "dist/sdk.cjs",
+    "dist/sdk.d.ts",
+    "dist/sdk.d.ts.map",
+    "dist/sdk.d.mts",
+    "dist/sdk.d.cts"
   ];
   const forbiddenPrefixes = [
     ".github/",
@@ -82,6 +98,8 @@ const assertPackagePayload = (files: ReadonlyArray<PackFile>) => {
     ".dockerignore",
     "compose.yaml",
     "Dockerfile",
+    "dist/http-transport.mjs",
+    "dist/http-transport.cjs",
     "dist/http-transport.js",
     "dist/http-transport.d.ts"
   ];
@@ -102,7 +120,7 @@ const assertPackagePayload = (files: ReadonlyArray<PackFile>) => {
   }
 };
 
-const consumerSource = `
+const esmConsumerSource = `
 import {
   createMockPayer,
   createMockX278Client,
@@ -156,6 +174,57 @@ void ProviderClient;
 void requestHash;
 `;
 
+const cjsConsumerSource = `
+const {
+  createMockPayer,
+  createMockX278Client,
+  kneeReplacementMissingDocs,
+  runX278Conformance
+} = require("@backwork/x278");
+const { createX278Client } = require("@backwork/x278/sdk");
+const { AuthorizationRequestSchema } = require("@backwork/x278/types");
+const { DeterminationSchema } = require("@backwork/x278/schemas");
+const { toPasClaimBundle } = require("@backwork/x278/fhir-pas");
+const { makeReferencePayerAgent } = require("@backwork/x278/payer-agent");
+const { ProviderClient } = require("@backwork/x278/provider-client");
+const { requestHash } = require("@backwork/x278/signing");
+
+(async () => {
+  const request = kneeReplacementMissingDocs;
+  const payer = createMockPayer();
+  const client = createMockX278Client({
+    collectEvidence: (_request, requirements) =>
+      requirements.map((requirement) => ({
+        id: requirement.id,
+        value: "release smoke fixture evidence",
+        source: "chart"
+      }))
+  });
+
+  const directClient = createX278Client(payer);
+  const final = await client.request(request);
+  const report = await runX278Conformance(payer);
+  const bundle = toPasClaimBundle(request, final.authId);
+
+  if (final.status !== "approved") {
+    throw new Error(\`expected approved final determination, got \${final.status}\`);
+  }
+  if (!report.passed) {
+    throw new Error("conformance report failed");
+  }
+  if (bundle.entry.length !== 4) {
+    throw new Error("PAS bundle did not include expected resources");
+  }
+
+  void directClient;
+  void AuthorizationRequestSchema;
+  void DeterminationSchema;
+  void makeReferencePayerAgent;
+  void ProviderClient;
+  void requestHash;
+})();
+`;
+
 const tsconfig = {
   compilerOptions: {
     target: "ES2022",
@@ -177,7 +246,13 @@ const main = async () => {
     await mkdir(packDir, { recursive: true });
     await mkdir(consumerDir, { recursive: true });
     const pack = parsePackResult(
-      await run("npm", ["pack", "--json", "--pack-destination", packDir])
+      await run("npm", [
+        "pack",
+        "--json",
+        "--ignore-scripts",
+        "--pack-destination",
+        packDir
+      ])
     );
     assertPackagePayload(pack.files);
 
@@ -190,7 +265,8 @@ const main = async () => {
       join(consumerDir, "tsconfig.json"),
       JSON.stringify(tsconfig, null, 2)
     );
-    await writeFile(join(consumerDir, "smoke.ts"), consumerSource.trimStart());
+    await writeFile(join(consumerDir, "smoke.ts"), esmConsumerSource.trimStart());
+    await writeFile(join(consumerDir, "smoke.cjs"), cjsConsumerSource.trimStart());
 
     await run("bun", ["add", tarball], consumerDir);
     await run(
@@ -199,6 +275,7 @@ const main = async () => {
       consumerDir
     );
     await run("bun", ["run", "smoke.ts"], consumerDir);
+    await run("node", ["smoke.cjs"], consumerDir);
 
     console.log(`release smoke passed: ${pack.filename}`);
   } finally {

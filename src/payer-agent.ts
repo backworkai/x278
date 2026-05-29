@@ -269,7 +269,10 @@ export const makeReferencePayerAgent: Effect.Effect<PayerAgentService> =
 
         if (!pending || pending.resumeToken !== resumeToken) {
           return yield* Effect.fail(
-            new ProtocolError({ reason: "invalid-resume-token" })
+            new ProtocolError({
+              kind: "payer",
+              reason: "invalid-resume-token"
+            })
           );
         }
 
@@ -296,7 +299,10 @@ export const makeReferencePayerAgent: Effect.Effect<PayerAgentService> =
 
         if (!pended) {
           return yield* Effect.fail(
-            new ProtocolError({ reason: "unknown-subscription" })
+            new ProtocolError({
+              kind: "payer",
+              reason: "unknown-subscription"
+            })
           );
         }
 
